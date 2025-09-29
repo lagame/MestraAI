@@ -12,6 +12,8 @@
 *.user
 *.userosscache
 *.suo
+*.zip
+*.bat
 *.sln.docstates
 *.opendb
 *.VC.db
