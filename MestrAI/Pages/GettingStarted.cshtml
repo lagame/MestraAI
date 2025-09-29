@@ -1,0 +1,443 @@
+@page
+@{
+    ViewData["Title"] = "Guia de Início";
+}
+
+<div class="hero-section text-center py-5 mb-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h1 class="display-4 fw-bold mb-3">
+                    <i class="bi bi-rocket-takeoff text-primary me-3"></i>
+                    Guia de Início
+                </h1>
+                <p class="lead">Tudo que você precisa saber para começar sua jornada no MestrAI</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Primeiros Passos -->
+    <div class="row mb-5">
+        <div class="col-12 text-center mb-4">
+            <h2>Primeiros Passos</h2>
+            <p class="lead text-muted">Siga este guia passo a passo para configurar sua primeira sessão</p>
+        </div>
+        
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="step-card">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    <h5>Crie sua Conta</h5>
+                    <p>Registre-se gratuitamente e configure seu perfil. Escolha se você será um Mestre, Jogador ou ambos.</p>
+                    <a href="/Identity/Account/Register" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-person-plus me-1"></i>
+                        Criar Conta
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="step-card">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    <h5>Configure sua Mesa</h5>
+                    <p>Crie sua primeira mesa de RPG, defina o sistema, cenário e convide seus amigos para participar.</p>
+                    <a asp-page="/Mesas/Create" class="btn btn-outline-success btn-sm">
+                        <i class="bi bi-plus-circle me-1"></i>
+                        Nova Mesa
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="step-card">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    <h5>Comece a Jogar</h5>
+                    <p>Inicie sua primeira sessão, use as ferramentas integradas e deixe a magia do RPG acontecer!</p>
+                    <a asp-page="/Sessions/Index" class="btn btn-outline-info btn-sm">
+                        <i class="bi bi-play-circle me-1"></i>
+                        Ver Sessões
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Para Mestres -->
+    <div class="row align-items-center mb-5">
+        <div class="col-lg-6">
+            <h2 class="mb-4">
+                <i class="bi bi-crown text-warning me-2"></i>
+                Para Mestres
+            </h2>
+            <p class="lead">Ferramentas poderosas para criar experiências inesquecíveis</p>
+            
+            <div class="feature-list">
+                <div class="feature-item">
+                    <i class="bi bi-check-circle text-success me-3"></i>
+                    <div>
+                        <h6>Assistente de IA</h6>
+                        <p class="text-muted mb-0">Use nossa IA para gerar NPCs, cenários e plot hooks instantaneamente</p>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <i class="bi bi-check-circle text-success me-3"></i>
+                    <div>
+                        <h6>Mapas Interativos</h6>
+                        <p class="text-muted mb-0">Crie mapas de batalha com fog of war e tokens dinâmicos</p>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <i class="bi bi-check-circle text-success me-3"></i>
+                    <div>
+                        <h6>Gerenciamento de Sessão</h6>
+                        <p class="text-muted mb-0">Controle iniciativa, HP dos NPCs e efeitos de status em tempo real</p>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <i class="bi bi-check-circle text-success me-3"></i>
+                    <div>
+                        <h6>Biblioteca de Recursos</h6>
+                        <p class="text-muted mb-0">Acesse uma vasta biblioteca de monstros, magias e itens</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 text-center">
+            <div class="illustration-card">
+                <i class="bi bi-person-workspace display-1 text-warning"></i>
+                <h4 class="mt-3">Mestre Digital</h4>
+                <p class="text-muted">Todas as ferramentas que você precisa em um só lugar</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Para Jogadores -->
+    <div class="row align-items-center mb-5">
+        <div class="col-lg-6 text-center order-lg-2">
+            <div class="illustration-card">
+                <i class="bi bi-people-fill display-1 text-primary"></i>
+                <h4 class="mt-3">Experiência Imersiva</h4>
+                <p class="text-muted">Foque na interpretação, nós cuidamos do resto</p>
+            </div>
+        </div>
+        <div class="col-lg-6 order-lg-1">
+            <h2 class="mb-4">
+                <i class="bi bi-person-heart text-primary me-2"></i>
+                Para Jogadores
+            </h2>
+            <p class="lead">Uma experiência de jogo fluida e envolvente</p>
+            
+            <div class="feature-list">
+                <div class="feature-item">
+                    <i class="bi bi-check-circle text-success me-3"></i>
+                    <div>
+                        <h6>Fichas Inteligentes</h6>
+                        <p class="text-muted mb-0">Fichas que calculam automaticamente modificadores e efeitos</p>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <i class="bi bi-check-circle text-success me-3"></i>
+                    <div>
+                        <h6>Rolagem Integrada</h6>
+                        <p class="text-muted mb-0">Role dados diretamente da ficha com um clique</p>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <i class="bi bi-check-circle text-success me-3"></i>
+                    <div>
+                        <h6>Chat Privado</h6>
+                        <p class="text-muted mb-0">Comunique-se com o mestre e outros jogadores discretamente</p>
+                    </div>
+                </div>
+                
+                <div class="feature-item">
+                    <i class="bi bi-check-circle text-success me-3"></i>
+                    <div>
+                        <h6>Histórico Completo</h6>
+                        <p class="text-muted mb-0">Acesse o histórico completo de suas sessões e personagens</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dicas e Truques -->
+    <div class="row mb-5">
+        <div class="col-12 text-center mb-4">
+            <h2>Dicas e Truques</h2>
+            <p class="lead text-muted">Maximize sua experiência com essas dicas valiosas</p>
+        </div>
+        
+        <div class="col-lg-6 mb-4">
+            <div class="tip-card">
+                <div class="tip-icon">
+                    <i class="bi bi-lightbulb text-warning"></i>
+                </div>
+                <div class="tip-content">
+                    <h6>Atalhos de Teclado</h6>
+                    <p class="mb-2">Use atalhos para agilizar suas ações:</p>
+                    <ul class="small text-muted">
+                        <li><kbd>Ctrl + D</kbd> - Rolar dados rapidamente</li>
+                        <li><kbd>Ctrl + M</kbd> - Abrir mapa</li>
+                        <li><kbd>Ctrl + C</kbd> - Focar no chat</li>
+                        <li><kbd>Ctrl + I</kbd> - Ver iniciativa</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6 mb-4">
+            <div class="tip-card">
+                <div class="tip-icon">
+                    <i class="bi bi-gear text-info"></i>
+                </div>
+                <div class="tip-content">
+                    <h6>Personalização</h6>
+                    <p class="mb-2">Adapte a interface às suas necessidades:</p>
+                    <ul class="small text-muted">
+                        <li>Escolha entre tema claro e escuro</li>
+                        <li>Configure notificações personalizadas</li>
+                        <li>Organize suas abas favoritas</li>
+                        <li>Defina macros para ações frequentes</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6 mb-4">
+            <div class="tip-card">
+                <div class="tip-icon">
+                    <i class="bi bi-people text-success"></i>
+                </div>
+                <div class="tip-content">
+                    <h6>Colaboração</h6>
+                    <p class="mb-2">Trabalhe melhor em equipe:</p>
+                    <ul class="small text-muted">
+                        <li>Compartilhe anotações com o grupo</li>
+                        <li>Use marcadores no mapa colaborativamente</li>
+                        <li>Sincronize iniciativas automaticamente</li>
+                        <li>Crie lembretes para toda a mesa</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6 mb-4">
+            <div class="tip-card">
+                <div class="tip-icon">
+                    <i class="bi bi-shield-check text-primary"></i>
+                </div>
+                <div class="tip-content">
+                    <h6>Backup e Segurança</h6>
+                    <p class="mb-2">Mantenha seus dados seguros:</p>
+                    <ul class="small text-muted">
+                        <li>Backup automático na nuvem</li>
+                        <li>Exporte suas fichas regularmente</li>
+                        <li>Use senhas fortes e únicas</li>
+                        <li>Ative autenticação de dois fatores</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAQ Rápido -->
+    <div class="row justify-content-center mb-5">
+        <div class="col-lg-10">
+            <h2 class="text-center mb-4">Perguntas Frequentes</h2>
+            
+            <div class="accordion" id="faqAccordion">
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                            É realmente gratuito?
+                        </button>
+                    </h2>
+                    <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            Sim! O MestrAI oferece um plano gratuito robusto que inclui todas as funcionalidades essenciais para jogar RPG online. Planos premium oferecem recursos avançados como IA ilimitada e armazenamento extra.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
+                            Quais sistemas de RPG são suportados?
+                        </button>
+                    </h2>
+                    <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            Suportamos mais de 50 sistemas populares incluindo D&D 5e, Pathfinder, Call of Cthulhu, Vampire, Tormenta20, 3D&T e muitos outros. Nosso sistema é flexível e permite criar fichas personalizadas para qualquer sistema.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
+                            Funciona no celular?
+                        </button>
+                    </h2>
+                    <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            Absolutamente! Nossa plataforma é mobile-first, funcionando perfeitamente em smartphones e tablets. Você pode jogar com a mesma qualidade em qualquer dispositivo.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="accordion-item">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4">
+                            Como funciona a IA?
+                        </button>
+                    </h2>
+                    <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body">
+                            Nossa IA é treinada especificamente para RPG e ajuda mestres com geração de conteúdo, sugestões narrativas e automação de regras. Ela aprende com suas sessões para oferecer sugestões cada vez mais personalizadas.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Call to Action Final -->
+    <div class="row justify-content-center">
+        <div class="col-lg-8 text-center">
+            <div class="card bg-primary text-white">
+                <div class="card-body p-5">
+                    <h3 class="mb-3">Pronto para Começar?</h3>
+                    <p class="lead mb-4">Junte-se a milhares de RPGistas que já descobriram uma nova forma de jogar!</p>
+                    <div class="d-flex gap-3 justify-content-center flex-wrap">
+                        <a href="/Identity/Account/Register" class="btn btn-light btn-lg">
+                            <i class="bi bi-rocket-takeoff me-2"></i>
+                            Começar Agora
+                        </a>
+                        <a asp-page="/Features" class="btn btn-outline-light btn-lg">
+                            <i class="bi bi-list-stars me-2"></i>
+                            Ver Recursos
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.hero-section {
+    background: linear-gradient(135deg, var(--theme-bg-secondary) 0%, var(--theme-bg-tertiary) 100%);
+    border-radius: 0 0 2rem 2rem;
+}
+
+.step-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 2rem;
+    border-radius: 1rem;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    box-shadow: var(--card-shadow);
+    height: 100%;
+    transition: transform 0.3s ease;
+}
+
+.step-card:hover {
+    transform: translateY(-5px);
+}
+
+.step-number {
+    background: var(--bs-primary);
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.step-content {
+    flex: 1;
+}
+
+.feature-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.feature-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.illustration-card {
+    padding: 3rem 2rem;
+    border-radius: 1rem;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    box-shadow: var(--card-shadow);
+}
+
+.tip-card {
+    display: flex;
+    gap: 1rem;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    box-shadow: var(--card-shadow);
+    height: 100%;
+}
+
+.tip-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.tip-content {
+    flex: 1;
+}
+
+kbd {
+    background: var(--theme-bg-tertiary);
+    border: 1px solid var(--theme-border);
+    border-radius: 0.25rem;
+    padding: 0.125rem 0.25rem;
+    font-size: 0.75rem;
+}
+
+.accordion-button {
+    background: var(--card-bg);
+    color: var(--theme-text-primary);
+    border: none;
+}
+
+.accordion-button:not(.collapsed) {
+    background: var(--bs-primary);
+    color: white;
+}
+
+.accordion-item {
+    border: 1px solid var(--card-border);
+    background: var(--card-bg);
+}
+</style>
+

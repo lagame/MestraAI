@@ -1,0 +1,110 @@
+@page
+@model RPGSessionManager.Pages.Mesas.IndexModel
+@{
+    ViewData["Title"] = "Minhas Mesas";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Minhas Mesas</h1>
+    <a asp-page="./Create" class="btn btn-primary">
+        <i class="fas fa-plus"></i> Nova Mesa
+    </a>
+</div>
+
+@if (Model.GameTabletops.Any())
+{
+    <div class="row">
+        @foreach (var mesa in Model.GameTabletops)
+        {
+            <div class="col-md-6 col-lg-4 mb-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="card-title mb-0">@mesa.Name</h5>
+                    </div>
+                    <div class="card-body d-flex flex-column">
+                        <div class="mb-3">
+                            <p class="card-text">
+                                <strong>Sistema:</strong> @mesa.SystemName<br>
+                                <strong>Cenário:</strong> @mesa.ScenarioName<br>
+                                <strong>Criada em:</strong> @mesa.CreatedAt.ToString("dd/MM/yyyy")
+                            </p>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <h6>Participantes (@mesa.Members.Count()):</h6>
+                            @if (mesa.Members.Any())
+                            {
+                                <div class="d-flex flex-wrap gap-1">
+                                    @foreach (var member in mesa.Members.Take(3))
+                                    {
+                                        <span class="badge bg-secondary">@member.User.UserName</span>
+                                    }
+                                    @if (mesa.Members.Count() > 3)
+                                    {
+                                        <span class="badge bg-light text-dark">+@(mesa.Members.Count() - 3) mais</span>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <small class="text-muted">Nenhum participante</small>
+                            }
+                        </div>
+
+                        <div class="mb-3">
+                            <small class="text-muted">
+                                @{
+                                    var sessionCount = mesa.Sessions?.Count() ?? 0;
+                                }
+                                @sessionCount sessão@(sessionCount != 1 ? "ões" : "") criada@(sessionCount != 1 ? "s" : "")
+                            </small>
+                        </div>
+
+                        <div class="mt-auto">
+                            <div class="btn-group w-100" role="group">
+                                <a asp-page="./Details" asp-route-id="@mesa.Id" class="btn btn-outline-primary">
+                                    <i class="fas fa-eye"></i> Ver Detalhes
+                                </a>
+                                <a asp-page="./Edit" asp-route-id="@mesa.Id" class="btn btn-outline-secondary">
+                                    <i class="fas fa-edit"></i> Editar
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="text-center py-5">
+        <div class="mb-4">
+            <i class="fas fa-dice-d20 fa-4x text-muted"></i>
+        </div>
+        <h3 class="text-muted">Nenhuma mesa criada ainda</h3>
+        <p class="text-muted">Crie sua primeira mesa de RPG para começar a organizar suas sessões!</p>
+        <a asp-page="./Create" class="btn btn-primary btn-lg">
+            <i class="fas fa-plus"></i> Criar Primeira Mesa
+        </a>
+    </div>
+}
+
+@section Scripts {
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+}
+
+<style>
+.card {
+    transition: transform 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+.badge {
+    font-size: 0.75em;
+}
+</style>
+

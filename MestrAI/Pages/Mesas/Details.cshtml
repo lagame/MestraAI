@@ -1,0 +1,258 @@
+@page
+@using RPGSessionManager.Models
+@model RPGSessionManager.Pages.Mesas.DetailsModel
+@{
+    ViewData["Title"] = $"Mesa: {Model.GameTabletop.Name}";
+}
+
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Página Inicial</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Mesas</a></li>
+        <li class="breadcrumb-item active" aria-current="page">@Model.GameTabletop.Name</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Informações da Mesa -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">@Model.GameTabletop.Name</h4>
+                <div>
+                    <a asp-page="./Edit" asp-route-id="@Model.GameTabletop.Id" class="btn btn-light btn-sm">
+                        <i class="fas fa-edit"></i> Editar Mesa
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Sistema de RPG:</strong> @Model.GameTabletop.SystemName</p>
+                        <p><strong>Cenário:</strong> @Model.GameTabletop.ScenarioName</p>
+                        <p><strong>Narrador:</strong> @Model.GameTabletop.Narrator.UserName</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Criada em:</strong> @Model.GameTabletop.CreatedAt.ToString("dd/MM/yyyy HH:mm")</p>
+                        <p><strong>Última atualização:</strong> @Model.GameTabletop.UpdatedAt.ToString("dd/MM/yyyy HH:mm")</p>
+                    </div>
+                </div>
+                
+                @if (!string.IsNullOrEmpty(Model.GameTabletop.Description))
+                {
+                    <div class="mt-3">
+                        <strong>Descrição:</strong>
+                        <p class="mt-2">@Model.GameTabletop.Description</p>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Sessões da Mesa -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Sessões desta Mesa</h5>
+                <a asp-page="/Sessions/Create" asp-route-mesaId="@Model.GameTabletop.Id" class="btn btn-success btn-sm">
+                    <i class="fas fa-plus"></i> Nova Sessão
+                </a>
+            </div>
+            <div class="card-body">
+                @if (Model.Sessions.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Nome da Sessão</th>
+                                    <th>Data/Hora</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var session in Model.Sessions)
+                                {
+                                    <tr>
+                                        <td>
+                                            <strong>@session.Name</strong>
+                                            @if (!string.IsNullOrEmpty(session.Description))
+                                            {
+                                                <br><small class="text-muted">@session.Description</small>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (session.ScheduledDate.HasValue)
+                                            {
+                                                @session.ScheduledDate.Value.ToString("dd/MM/yyyy HH:mm")
+                                            }
+                                            else
+                                            {
+                                                <span class="text-muted">Não agendada</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @switch (session.Status)
+                                            {
+                                                case SessionStatus.Planned:
+                                                    <span class="badge bg-secondary">Planejada</span>
+                                                    break;
+                                                case SessionStatus.Active:
+                                                    <span class="badge bg-success">Ativa</span>
+                                                    break;
+                                                case SessionStatus.Completed:
+                                                    <span class="badge bg-primary">Concluída</span>
+                                                    break;
+                                                case SessionStatus.Cancelled:
+                                                    <span class="badge bg-danger">Cancelada</span>
+                                                    break;
+                                            }
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <a asp-page="/Sessions/Chat" asp-route-id="@session.Id" class="btn btn-primary" title="Entrar no Chat">
+                                                    <i class="fas fa-comments"></i>
+                                                </a>
+
+                                                <a asp-page="/Sessions/BattlemapMobile" asp-route-id="@session.Id" class="btn btn-outline-success" title="Abrir Battlemap">
+                                                    <i class="fas fa-map-marked-alt"></i>
+                                                </a>
+                                                <a asp-page="/Sessions/Details" asp-route-id="@session.Id" class="btn btn-outline-info" title="Ver Detalhes">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a asp-page="/Sessions/Edit" asp-route-id="@session.Id" class="btn btn-outline-secondary" title="Editar">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-center py-4">
+                        <i class="fas fa-calendar-alt fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">Nenhuma sessão criada ainda</h5>
+                        <p class="text-muted">Crie a primeira sessão para esta mesa!</p>
+                        <a asp-page="/Sessions/Create" asp-route-mesaId="@Model.GameTabletop.Id" class="btn btn-success">
+                            <i class="fas fa-plus"></i> Criar Primeira Sessão
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <!-- Participantes da Mesa -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Participantes da Mesa</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>Narrador:</strong>
+                    <div class="d-flex align-items-center mt-1">
+                        <i class="fas fa-crown text-warning me-2"></i>
+                        <span>@Model.GameTabletop.Narrator.UserName</span>
+                    </div>
+                </div>
+
+                @if (Model.GameTabletop.Members.Any())
+                {
+                    <strong>Jogadores (@Model.GameTabletop.Members.Count()):</strong>
+                    <div class="mt-2">
+                        @foreach (var member in Model.GameTabletop.Members)
+                        {
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="fas fa-user text-primary me-2"></i>
+                                <span>@member.User.UserName</span>
+                                @if (member.Role == TabletopRole.Player)
+                                {
+                                    <small class="text-muted ms-auto">Jogador</small>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="mt-3">
+                        <small class="text-muted">Nenhum jogador adicionado ainda</small>
+                    </div>
+                }
+
+                <div class="mt-3">
+                    @if (Model.CanManageMembers)
+                    {
+                        <button class="btn btn-outline-primary btn-sm w-100" data-bs-toggle="modal" data-bs-target="#addPlayerModal">
+                            <i class="fas fa-user-plus" title="Apenas o Narrador pode adicionar um jogador a uma mesa" alt="Apenas o Narrador pode adicionar um jogador a uma mesa"></i> Adicionar Jogador
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-outline-primary btn-sm w-100" disabled title="Apenas o narrador pode adicionar jogadores">
+                            <i class="fas fa-user-plus" title="Apenas o Narrador pode adicionar um jogador a uma mesa" alt="Apenas o Narrador pode adicionar um jogador a uma mesa"></i> Adicionar Jogador
+                        </button>
+                    }
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Estatísticas -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Estatísticas</h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="border-end">
+                            <h4 class="text-primary">@Model.Sessions.Count()</h4>
+                            <small class="text-muted">Sessões</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-success">@Model.GameTabletop.Members.Count()</h4>
+                        <small class="text-muted">Jogadores</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para adicionar jogador -->
+<div class="modal fade" id="addPlayerModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Adicionar Jogador</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="post" asp-page-handler="AddPlayer">
+                    <input type="hidden" name="GameTabletopId" value="@Model.GameTabletop.Id" />
+                    <div class="mb-3">
+                        <label for="playerEmail" class="form-label">Email do Jogador</label>
+                        <input type="email" class="form-control" id="playerEmail" name="PlayerEmail" required>
+                        <div class="form-text">Digite o email do usuário que deseja adicionar como jogador.</div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Adicionar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+}
+

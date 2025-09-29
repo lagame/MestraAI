@@ -1,0 +1,301 @@
+@* _Layout.cshtml adaptado: mobile offcanvas funcional sem remover o menu existente *@
+<!DOCTYPE html>
+<html lang="pt-BR" data-bs-theme="auto">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - MestrAI</title>
+
+    <link rel="icon" type="image/png" sizes="32x32" href="~/images/favicons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="~/images/favicons/favicon-16x16.png">
+    <link rel="shortcut icon" href="~/favicon.ico">
+
+    @* <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous"> *@
+    <link rel="stylesheet" href="~/lib/bootstrap/css/bootstrap.min.css" />
+    @* <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css"> *@
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.css" />
+    <link rel="stylesheet" href="~/css/theme.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+@{
+    // Allow pages to define a custom body class via ViewData["BodyClass"]
+    var additionalBodyClass = ViewData["BodyClass"] as string;
+}
+<body class="d-flex flex-column min-vh-100 @(additionalBodyClass)">
+    <a class="visually-hidden-focusable btn btn-primary position-absolute top-0 start-0 m-2" href="#main-content">
+        Pular para o conteúdo principal
+    </a>
+    @if (!string.Equals(additionalBodyClass, "battlemap-mobile", StringComparison.OrdinalIgnoreCase))
+    {
+    <header class="navbar navbar-expand-lg navbar-dark sticky-top" role="banner">
+        <div class="container-fluid">
+            <div class="d-flex align-items-center">
+                <a class="navbar-brand d-flex align-items-center me-4" asp-area="" asp-page="/Index">
+                    <img src="~/images/mestrai-icon.png" alt="MestrAI Logo" width="32" height="32" class="me-2">
+                    <span class="fw-bold">MestrAI</span>
+                </a>
+
+                <button class="navbar-toggler d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileNavigation" aria-controls="mobileNavigation" aria-expanded="false" aria-label="Alternar navegação">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <div class="collapse navbar-expand d-none d-lg-flex justify-content-between w-100">
+                    <ul class="navbar-nav">
+                        <li class="nav-item">
+                            <a class="nav-link d-flex align-items-center" asp-area="" asp-page="/Index">
+                                <i class="bi bi-house me-1"></i>
+                                <span>Início</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link d-flex align-items-center" asp-area="" asp-page="/Features">
+                                <i class="bi bi-gear me-1"></i>
+                                <span>Recursos</span>
+                            </a>
+                        </li>
+                        @if (User?.Identity?.IsAuthenticated == true)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link d-flex align-items-center" asp-area="" asp-page="/Mesas/Index">
+                                    <i class="bi bi-table me-1"></i>
+                                    <span>Mesas</span>
+                                </a>
+                            </li>
+                            @if (User.IsInRole("Narrator") || User.IsInRole("Admin"))
+                            {
+                                <li class="nav-item">
+                                    <a class="nav-link d-flex align-items-center" asp-area="" asp-page="/AiTest">
+                                        <i class="bi bi-robot me-1"></i>
+                                        <span>Teste IA</span>
+                                    </a>
+                                </li>
+                            }
+
+                            @if (User.IsInRole("Admin"))
+                            {
+                                <li class="nav-item dropdown">
+                                    <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="adminMenuLink" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <i class="bi bi-shield-lock me-1"></i>
+                                        <span>Admin</span>
+                                    </a>
+                                    <ul class="dropdown-menu" aria-labelledby="adminMenuLink">
+                                        <li>
+                                            <a class="dropdown-item d-flex align-items-center" asp-area="" asp-page="/Admin/Members/Index">
+                                                <i class="bi bi-people me-2"></i>
+                                                <span>Membros</span>
+                                            </a>
+                                        </li>
+                                        @*
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <a class="dropdown-item" asp-page="/Admin/OutraPagina">Outra Opção</a>
+                                        </li> *@
+                                        <li>
+                                            <a class="dropdown-item d-flex align-items-center" asp-area="" asp-page="/Admin/AISettings">
+                                                <i class="bi bi-shield-lock me-1"></i>
+                                                <span>Configurar IA</span>
+                                            </a>
+                                         </li>
+                                       
+                                    </ul>
+                                </li>
+                            }
+                        }
+                        <li class="nav-item">
+                            <a class="nav-link d-flex align-items-center" asp-area="" asp-page="/Community">
+                                <i class="bi bi-people me-1"></i>
+                                <span>Comunidade</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link d-flex align-items-center" asp-area="" asp-page="/About">
+                                <i class="bi bi-info-circle me-1"></i>
+                                <span>Sobre</span>
+                            </a>
+                        </li>
+                    </ul>
+                    <div class="d-flex align-items-center">
+                        <partial name="_LoginPartial" />
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="offcanvas offcanvas-start d-lg-none" tabindex="-1" id="mobileNavigation" aria-labelledby="mobileNavigationLabel">
+                <div class="offcanvas-header">
+                    <h5 class="offcanvas-title" id="mobileNavigationLabel">
+                        <i class="bi bi-dice-6 me-2"></i>
+                        MestrAI
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar menu"></button>
+                </div>
+                <div class="offcanvas-body d-flex flex-column">
+                    @* Placeholder: vamos clonar o menu desktop para cá via JS para evitar duplicação de lógica no servidor *@
+                    <nav id="mobileNavContent" class="mb-3">
+                        @* conteúdo será injetado via script: clona o <ul class="navbar-nav"> do desktop e adapta para mobile *@
+                    </nav>
+
+                    <hr class="my-4">
+
+                    <div class="mt-auto">
+                        <partial name="_LoginPartial" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+    }
+    <div class="container-fluid">
+        @* Alerts globais via TempData: Success / Error / InfoMessage + InfoLink *@
+        @{
+            var success = TempData["Success"] as string;
+            var error = TempData["Error"] as string;
+            var infoMsg = TempData["InfoMessage"] as string;
+            var infoLink = TempData["InfoLink"] as string;
+        }
+
+        @if (!string.IsNullOrEmpty(success))
+        {
+            <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+                <i class="bi bi-check-circle me-2"></i>
+                @Html.Encode(success)
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar alerta de sucesso"></button>
+            </div>
+        }
+        @if (!string.IsNullOrEmpty(error))
+        {
+            <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                @Html.Encode(error)
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar alerta de erro"></button>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(infoMsg) && (User?.Identity?.IsAuthenticated ?? false))
+        {
+            <div class="alert alert-info alert-dismissible fade show mt-3" role="alert">
+                <i class="bi bi-info-circle me-2"></i>
+                @Html.Encode(System.Net.WebUtility.HtmlDecode(infoMsg))
+                @if (!string.IsNullOrEmpty(infoLink))
+                {
+                    <div class="mt-2">
+                        <a class="btn btn-sm btn-outline-primary" href="@infoLink" target="_blank" rel="noopener">
+                            <i class="bi bi-box-arrow-up-right me-1"></i>
+                            Definir senha / Acessar conta
+                        </a>
+                    </div>
+                }
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar alerta informativo"></button>
+            </div>
+        }
+
+        <main id="main-content" role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
+
+
+    @* Only render the default footer when not on a battlemap mobile page.  On
+       battlemap mobile pages we hide the footer to give more space to the
+       interactive map and chat, relying instead on the map-specific footer
+       defined within the page. *@
+    @if (!string.Equals(additionalBodyClass, "battlemap-mobile", StringComparison.OrdinalIgnoreCase))
+    {
+        <footer class="footer mt-auto py-4">
+            <div class="container-fluid">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        <span>&copy; 2025 - MestrAI</span>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <a asp-area="" asp-page="/Privacy" class="text-decoration-none">
+                            <i class="bi bi-shield-check me-1"></i>
+                            Privacidade
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </footer>
+        <script src="~/js/theme.js" asp-append-version="true"></script>
+    }
+    else
+    {        
+        <script src="~/lib/plain-draggable/plain-draggable.min.js"></script>
+    }
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    @* <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script> *@
+    <script src="~/lib/bootstrap/js/bootstrap.bundle.min.js"></script>
+    
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    
+
+    @* Script que copia o menu desktop pro offcanvas quando ele abre e fecha o offcanvas ao clicar em um link *@
+    <script>
+        (function () {
+            document.addEventListener('DOMContentLoaded', function () {
+                var mobileNavEl = document.getElementById('mobileNavigation');
+                var mobileNavContainer = document.getElementById('mobileNavContent');
+
+                if (!mobileNavEl || !mobileNavContainer) return;
+
+                // selector robusto para encontrar o <ul class="navbar-nav"> desktop
+                function findDesktopNav() {
+                    return document.querySelector('header .collapse .navbar-nav')
+                        || document.querySelector('header .navbar-nav')
+                        || document.querySelector('.navbar-nav');
+                }
+
+                function cloneDesktopNavToMobile() {
+                    try {
+                        var desktopNav = findDesktopNav();
+                        if (!desktopNav) return; // nada a clonar
+
+                        // evita clonar várias vezes
+                        if (mobileNavContainer.dataset.cloned === 'true') return;
+                        // clona o UL (somente os nós, sem eventos)
+                        var clone = desktopNav.cloneNode(true);
+                        // adapta classes para visual vertical / touch
+                        clone.classList.remove('me-auto', 'mb-2', 'mb-lg-0');
+                        // remove classes que não fazem sentido no mobile
+                        clone.classList.add('flex-column');
+                        // ajusta cada link para toque (espaçamento)
+                        clone.querySelectorAll('.nav-link').forEach(function (link) {
+                            link.classList.add('py-3', 'd-flex', 'align-items-center');
+                        });
+                        // limpa e insere
+                        mobileNavContainer.innerHTML = '';
+                        mobileNavContainer.appendChild(clone);
+
+                        mobileNavContainer.dataset.cloned = 'true';
+                    } catch (ex) {
+                        console.error('Erro ao clonar menu para mobile:', ex);
+                    }
+                }
+
+                // tentar clonar já no load (reduz chance do offcanvas abrir sem conteúdo)
+                cloneDesktopNavToMobile();
+                // e também quando o offcanvas for aberto (fallback)
+                mobileNavEl.addEventListener('show.bs.offcanvas', function () {
+                    cloneDesktopNavToMobile();
+                });
+                // fecha o offcanvas ao clicar em um link interno do menu
+                mobileNavContainer.addEventListener('click', function (e) {
+                    var a = e.target.closest('a.nav-link');
+                    if (!a) return;
+
+                    try {
+                        var oc = bootstrap.Offcanvas.getInstance(mobileNavEl) || new bootstrap.Offcanvas(mobileNavEl);
+                        oc.hide();
+                    } catch (err) {
+                        // ignore
+                    }
+                }, true);
+            });
+        })();
+    </script>
+
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

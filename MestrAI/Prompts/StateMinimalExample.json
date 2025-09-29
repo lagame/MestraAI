@@ -1,0 +1,46 @@
+{
+  "scene": "Taverna do Javali Dourado",
+  "location": "Cidade de Pedravale",
+  "time": "Noite, lua crescente",
+  "pcs": [
+    {
+      "name": "Celith",
+      "ac": 15,
+      "hp": 12,
+      "hp_max": 12,
+      "abilities": {
+        "STR": 10,
+        "DEX": 16,
+        "CON": 14,
+        "INT": 12,
+        "WIS": 13,
+        "CHA": 8
+      },
+      "skills_prof": ["Stealth", "Perception", "Sleight of Hand"],
+      "inventory": ["Arco curto", "Aljava com 20 flechas", "Adaga", "Armadura de couro"],
+      "coins": {"gp": 15, "sp": 8, "cp": 23},
+      "conditions": []
+    }
+  ],
+  "npcs": [
+    {
+      "name": "Gareth, o Taverneiro",
+      "attitude": "friendly",
+      "ac": 11,
+      "hp": 8,
+      "notes": "Conhece rumores locais, oferece informações por bebidas"
+    }
+  ],
+  "initiative": [],
+  "quest_log": ["Investigar desaparecimentos na floresta próxima"],
+  "flags": {
+    "combat_active": false,
+    "shop_open": false
+  },
+  "history": [
+    "Chegada à taverna",
+    "Conversa inicial com Gareth",
+    "Soube sobre desaparecimentos misteriosos"
+  ]
+}
+

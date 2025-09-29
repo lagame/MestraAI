@@ -1,0 +1,2261 @@
+@page "/Sessions/BattlemapMobile/{id:int}"
+@using Ganss.Xss
+@model RPGSessionManager.Pages.Sessions.BattlemapMobileModel
+@{
+    ViewData["Title"] = $"Battlemap Mobile - {Model.SessionName}";
+    // This body class is used by the layout to hide the header/footer on the mobile battlemap page
+    ViewData["BodyClass"] = "battlemap-mobile";
+}
+
+<div class="container-fluid p-0">
+    <div class="row g-0">
+        <!-- Battlemap Canvas -->
+        <div class="col-lg-8">
+            <div class="position-relative" style="height: 100vh;">
+                <!-- Canvas Container -->
+                <div id="battlemap-container" class="w-100 h-100 bg-dark position-relative">                    
+                    
+                    <!-- Loading Overlay -->
+                    <div id="loading-overlay" class="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-75">
+                        <div class="text-center text-white">
+                            <div class="spinner-border mb-3" role="status"></div>
+                            <div>Carregando battlemap...</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Controls Overlay -->
+                <div class="position-absolute top-0 start-0 p-3">
+                    <div class="btn-group-vertical" role="group">
+                        <button type="button" class="btn btn-dark btn-sm" onclick="zoomIn()">
+                            <i class="bi bi-zoom-in"></i>
+                        </button>
+                        <button type="button" class="btn btn-dark btn-sm" onclick="zoomOut()">
+                            <i class="bi bi-zoom-out"></i>
+                        </button>
+                        <button type="button" class="btn btn-dark btn-sm" onclick="resetView()">
+                            <i class="bi bi-house"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Session Info -->
+                <div class="position-absolute top-0 end-0 p-3">
+                    <div class="card bg-dark text-white" style="min-width: 200px;">
+                        <div class="card-body p-2">
+                            <h6 class="card-title mb-1">@Model.SessionName</h6>
+                            <div id="connection-status" class="small">
+                                <i class="bi bi-circle-fill text-success me-1"></i>
+                                Conectado
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                @if (Model.CanEditTokens)
+                {
+                    <!-- Token Controls -->
+                    <div class="position-absolute bottom-0 start-0 p-3">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-primary btn-sm" id="add-token-btn">
+                                <i class="bi bi-plus-circle"></i> Token
+                            </button>
+                            <button type="button" class="btn btn-info btn-sm" id="change-map-btn">
+                                <i class="bi bi-image"></i> Mapa
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="grid-settings-btn">
+                                <i class="bi bi-grid"></i> Grid
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+        
+        <!-- Chat Sidebar -->
+        <div class="col-lg-4 position-relative">
+            <!-- Resizer handle for adjusting chat width -->
+            <div id="chat-resizer" class="chat-resizer"></div>
+            <div class="d-flex flex-column" style="height: 100vh;">
+                <!-- Chat Header -->
+                <div class="bg-primary text-white p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">
+                            <i class="bi bi-chat-dots me-2"></i>
+                            Chat
+                        </h6>
+                        <a href="/Mesas/Details?id=@Model.SessionId" class="btn btn-outline-light btn-sm">
+                            <i class="bi bi-arrow-left"></i>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Online participants -->
+                <div id="online-participants" class="p-2 border-bottom small"></div>
+                <!-- Messages Container -->
+                <div id="chat-messages" class="flex-grow-1 overflow-auto p-3 bg-light" style="max-height: calc(100vh - 200px);">
+                    @foreach (var message in Model.Messages)
+                    {
+                        <div class="message-item mb-3 @BattlemapMobileHelpers.GetMessageCssClass(message.Type)" data-message-id="@message.Id">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="message-header">
+                                    <strong class="@BattlemapMobileHelpers.GetSenderCssClass(message.Type)">
+                                        @BattlemapMobileHelpers.GetSenderDisplayName(message)
+                                    </strong>
+                                    @if (message.IsAiGenerated)
+                                    {
+                                        <span class="badge bg-success ms-1">IA</span>
+                                    }
+                                    @if (message.Type == RPGSessionManager.Models.MessageType.DiceRoll)
+                                    {
+                                        <span class="badge bg-warning ms-1">Dado</span>
+                                    }
+                                </div>
+                                <small class="text-muted">@message.CreatedAt.ToString("HH:mm")</small>
+                            </div>
+                            <div class="message-content mt-1">
+                                @if (message.Type == RPGSessionManager.Models.MessageType.DiceRoll && !string.IsNullOrEmpty(message.Metadata))
+                                {
+                                    @await Html.PartialAsync("_RollMessagePartial", message)
+                                }
+                                else
+                                {
+                                    var sanitizer = new HtmlSanitizer();
+                                    var safeContent = sanitizer.Sanitize(message.Content);
+
+                                    @Html.Raw(safeContent)
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+                
+                <!-- Message Input -->
+                <div class="border-top p-3 bg-white">
+                    <form id="chat-form" method="post" asp-page-handler="SendMessage" onsubmit="handleFormSubmit(event)">
+                        <input type="hidden" name="sessionId" value="@Model.SessionId" />
+                        <div class="row g-2">
+                            <div class="col-12">
+                                <select name="messageType" class="form-select form-select-sm mb-2">
+                                    <option value="0">Mensagem</option>
+                                    <option value="1">Ação</option>
+                                    @if (User.IsInRole("Narrator") || User.IsInRole("Admin"))
+                                    {
+                                        <option value="2">Narração</option>                                        
+                                    }
+                                    <option value="4">Rolagem</option>
+                                </select>
+                            </div>
+                            <div class="col-9">
+                                <input type="text" name="content" class="form-control form-control-sm" 
+                                       placeholder="Digite sua mensagem..." required maxlength="1000" />
+                            </div>
+                            <div class="col-3">
+                                <button type="submit" class="btn btn-primary btn-sm w-100">
+                                    <i class="bi bi-send"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Message Styles */
+
+.container-fluid{
+    --bs-gutter-x: 0px;
+}
+.message-item {
+    border-left: 3px solid transparent;
+    padding-left: 0.75rem;
+    border-radius: 0.25rem;
+}
+
+.narrator-message {
+    border-left-color: #6f42c1;
+    background-color: rgba(111, 66, 193, 0.05);
+}
+
+.character-action {
+    border-left-color: #fd7e14;
+    background-color: rgba(253, 126, 20, 0.05);
+}
+
+.system-message {
+    border-left-color: #6c757d;
+    background-color: rgba(108, 117, 125, 0.05);
+}
+
+.dice-roll {
+    border-left-color: #dc3545;
+    background-color: rgba(220, 53, 69, 0.05);
+}
+
+.ai-message {
+    border-left-color: #20c997;
+    background-color: rgba(32, 201, 151, 0.05);
+}
+
+.sender-narrator { color: #6f42c1; }
+.sender-character { color: #fd7e14; }
+.sender-system { color: #6c757d; }
+.sender-dice { color: #dc3545; }
+.sender-ai { color: #20c997; }
+
+.message-content {
+    word-wrap: break-word;    
+}
+
+#chat-messages {
+    overflow-y: auto;
+    scroll-behavior: smooth;
+}
+
+
+/* Online participants list */
+#online-participants {
+    min-height: 50px;
+    overflow-y: auto;
+}
+.online-participant {
+    display: flex;
+    align-items: center;
+    margin-bottom: 2px;
+}
+.online-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 0.25rem;
+    background-color: #20c997;
+}
+/* Resizer handle */
+.chat-resizer {
+    position: absolute;
+    left: -2.5px;
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    cursor: col-resize;
+    z-index: 1000;
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Canvas Styles */
+/* Use the container itself for cursor feedback instead of a static canvas */
+#battlemap-container {
+    cursor: grab;
+}
+
+/* When dragging the container, show grabbing cursor */
+#battlemap-container:active {
+    cursor: grabbing;
+}
+
+/* Mobile Responsive */
+@@media (max-width: 991.98px) {
+    .col-lg-8, .col-lg-4 {
+        height: 50vh !important;
+    }
+    
+    #battlemap-container {
+        height: 50vh !important;
+    }
+    
+    .d-flex.flex-column {
+        height: 50vh !important;
+    }
+}
+</style>
+
+<script src="https://unpkg.com/konva@9/konva.min.js"></script>
+<script src="~/lib/microsoft-signalr/dist/browser/signalr.min.js"></script>
+
+<script>
+    // Global variables
+    let newMessageCount = 0;
+    let transformer = null;
+    let selectedTexture = null;      // { mediaId, url } ou { url } se veio de URL externa
+    //const sessionId = @Model.SessionId;   // já existe no seu arquivo
+
+    let sessionId = @Model.SessionId;
+    let isNarrator = @Model.IsNarrator.ToString().ToLower();
+    let battleMapData = @Html.Raw(Model.BattleMapJson);
+    let tokensData = @Html.Raw(Model.TokensJson);
+    
+    let canEditTokens = @Model.CanEditTokens.ToString().ToLower();
+    let currentUserId = '@Html.Raw(Model.CurrentUserId)';
+
+    let chatConnection;
+    let battlemapConnection;
+
+    let stage, layer, tokensLayer, gridShape;
+    let tokens = new Map();
+    let onlineUsers = [];
+    let selectedToken = null;
+    let gridVisible = true;
+    let currentScale = 1;
+    
+    // Lightweight battlemap metadata. Contains id, gridSize, zoomMin and zoomMax.    
+
+    // ===== Notificação Sonora do Chat =====
+    // Mantém um AudioContext único, evita múltiplos pings em sequência e permite silenciar.
+
+    let chatAudioCtx = null;
+    let chatGain = null;
+    let lastPingAt = 0;
+
+    // chave para persistir preferências
+    const CHAT_SOUND_KEY = 'chat_sound_enabled';
+
+    // NOVA FUNÇÃO: Remove a seleção de qualquer token que esteja selecionado
+    function deselectAllTokens() {
+        // Remove o transformer de qualquer nó que ele esteja anexado
+        transformer.nodes([]);
+        // Não precisamos mais da variável selectedToken
+    }
+
+    // NOVA FUNÇÃO: Mostra a seleção para um token específico
+    function selectToken(tokenGroup) {
+        // Anexa o transformer ao grupo do token
+        transformer.nodes([tokenGroup]);
+    }
+
+    // padrão: som ligado (salvo como "true" se nunca configurado)
+    function isChatSoundEnabled() {
+        const v = localStorage.getItem(CHAT_SOUND_KEY);
+        return v === null ? true : v === 'true';
+    }
+    function setChatSoundEnabled(on) {
+        localStorage.setItem(CHAT_SOUND_KEY, on ? 'true' : 'false');
+    }
+
+    // cria contexto e nó de ganho uma única vez
+    function ensureAudio() {
+        if (!chatAudioCtx) {
+            chatAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            chatGain = chatAudioCtx.createGain();            
+            chatGain.gain.value = 0.20;
+            chatGain.connect(chatAudioCtx.destination);
+        }
+    }
+
+    // ping curto, com debouncing
+    function playChatPing() {
+        if (!isChatSoundEnabled()) return;
+
+        // regra de cortesia: só tocar se a aba estiver oculta OU usuário não estiver no fim do chat
+        if (!document.hidden && isAtBottom) return;
+
+        const now = Date.now();
+        if (now - lastPingAt < 350) return; // evita avalanche de pings
+        lastPingAt = now;
+
+        try {
+            ensureAudio();
+
+            // oscilador para um "ping" agudo porém suave
+            const osc = chatAudioCtx.createOscillator();
+            const env = chatAudioCtx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.value = 880; // Hz (A5)
+
+            // envelope: ataque rápido, decaimento curto
+            const t0 = chatAudioCtx.currentTime;
+            env.gain.setValueAtTime(0.0001, t0);
+            env.gain.exponentialRampToValueAtTime(0.6, t0 + 0.01);
+            env.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.10);
+
+            osc.connect(env);
+            env.connect(chatGain);
+
+            osc.start(t0);
+            osc.stop(t0 + 0.12);
+        } catch (e) {
+            // navegadores podem bloquear áudio sem interação prévia
+            console.warn('Ping de chat bloqueado pelo navegador até interação do usuário.', e);
+        }
+    }
+
+    function setTokenPreview(url) {
+      const el = document.getElementById('token-preview');
+      if (el) el.style.backgroundImage = url ? `url('${url}')` : 'none';
+    }
+
+    function showTokenError(msg) {
+      const el = document.getElementById('token-error');
+      if (!el) return;
+      el.textContent = msg;
+      el.style.display = 'block';
+      setTimeout(() => (el.style.display = 'none'), 4000);
+    }
+
+    // inicializa handlers da modal quando ela ABRIR
+    function wireTokenModal(modalEl) {
+      const fileInput = modalEl.querySelector('#token-file');
+      const urlInput  = modalEl.querySelector('#token-image-url');
+      const testBtn   = modalEl.querySelector('#btn-test-url');
+      const createBtn = modalEl.querySelector('#create-token-btn');
+      const galleryTabBtn = modalEl.querySelector('#gallery-tab');
+      
+      // 1) Upload
+      if (fileInput) {
+        const onChange = async (ev) => {
+          const f = ev.target.files?.[0];
+          if (!f) return;
+
+          if (f.size > 10 * 1024 * 1024) { // 10 MB
+            showTokenError('Arquivo acima de 10 MB.');
+            return;
+          }
+
+          try {
+            const fd = new FormData();
+            fd.append('file', f);
+            fd.append('mediaType', 'image');
+            fd.append('sessionId', sessionId); // já existe no seu script
+
+            const resp = await fetch('/api/Media/upload', { method: 'POST', body: fd });
+            if (!resp.ok) {
+              const err = await resp.json().catch(() => ({}));
+              throw new Error(err.error || 'Falha no upload');
+            }
+            const data = await resp.json();
+            selectedTexture = { mediaId: data.id, url: data.url };
+            setTokenPreview(selectedTexture.url);
+          } catch (e) {
+            showTokenError(e.message);
+          }
+        };
+        // evita múltiplos binds se a modal abrir várias vezes
+        fileInput.removeEventListener('change', fileInput._onChange);
+        fileInput.addEventListener('change', onChange);
+        fileInput._onChange = onChange;
+      }
+
+      // 2) Testar URL
+      if (testBtn && urlInput) {
+        const onClick = () => {
+          const url = urlInput.value.trim();
+          if (!url) return showTokenError('Informe a URL.');
+          selectedTexture = { url };
+          setTokenPreview(url);
+        };
+        testBtn.removeEventListener('click', testBtn._onClick);
+        testBtn.addEventListener('click', onClick);
+        testBtn._onClick = onClick;
+      }
+
+      // 3) Galeria (carregar ao abrir a aba)
+      if (galleryTabBtn) {
+        const onShown = async () => {
+          const gal = modalEl.querySelector('#media-gallery');
+          if (!gal) return;
+          const resp = await fetch(`/api/Media/session/${sessionId}?mediaType=image`);
+          if (!resp.ok) return;
+          const items = await resp.json();
+          gal.innerHTML = '';
+          items.forEach(m => {
+            const col = document.createElement('div');
+            col.className = 'col-3';
+            col.innerHTML = `
+              <button type="button" class="btn p-0 w-100 border-0 select-media" data-id="${m.id}" data-url="${m.url}">
+                <div class="rounded-circle" style="width:64px;height:64px;background:url('${m.url}') center/cover;"></div>
+              </button>`;
+            gal.appendChild(col);
+          });
+
+          gal.onclick = (e) => {
+            const btn = e.target.closest('.select-media');
+            if (!btn) return;
+            selectedTexture = { mediaId: Number(btn.dataset.id), url: btn.dataset.url };
+            setTokenPreview(selectedTexture.url);
+          };
+        };
+
+        // evento Bootstrap 5 para abas
+        galleryTabBtn.removeEventListener('shown.bs.tab', galleryTabBtn._onShown);
+        galleryTabBtn.addEventListener('shown.bs.tab', onShown);
+        galleryTabBtn._onShown = onShown;
+      }
+
+      // 4) Criar token
+      if (createBtn) {
+        const onCreate = async () => {
+          const name = modalEl.querySelector('#token-name')?.value.trim();
+          if (!name) return showTokenError('Informe o nome.');
+
+          const imageUrl = selectedTexture?.url || null;
+          
+          // REMOVA ESTA SEÇÃO INTEIRA - Ela cria o token "fantasma" localmente
+          /*
+          addTokenToStage(
+            crypto.randomUUID(),
+            name,
+            imageUrl,
+            0, 0,
+            currentUserId,
+            ''
+          );
+          */
+          
+          // O CÓDIGO ABAIXO JÁ ESTÁ CORRETO E DEVE PERMANECER
+          const battleMapId = battleMapData.id || battleMapData.Id;
+          const centerX = snapToGrid(stage.width() / 2);
+          const centerY = snapToGrid(stage.height() / 2);
+
+          if (battlemapConnection && battleMapId) {
+              battlemapConnection.invoke('AddToken', sessionId, battleMapId, name, imageUrl, centerX, centerY)
+                  .catch(err => {
+                      console.error('Error adding token:', err);
+                      showTokenError('Erro ao criar token. Tente novamente.');
+                  });
+          }
+
+          bootstrap.Modal.getInstance(modalEl)?.hide();
+        };
+        createBtn.removeEventListener('click', createBtn._onCreate);
+        createBtn.addEventListener('click', onCreate);
+        createBtn._onCreate = onCreate;
+      }
+    }
+
+    // liga/desliga quando a modal abre/fecha
+    document.addEventListener('DOMContentLoaded', () => {
+        
+      const modalEl = document.getElementById('tokenModal');
+      if (!modalEl) return;
+
+      modalEl.addEventListener('shown.bs.modal', () => {
+        // limpa estado visual
+        selectedTexture = null;
+        setTokenPreview(null);
+        wireTokenModal(modalEl);
+      });
+
+      modalEl.addEventListener('hidden.bs.modal', () => {
+        selectedTexture = null;
+        setTokenPreview(null);
+      });
+    });
+
+
+
+    // Função para a conexão com o Hub de CHAT
+    async function initializeChatHub() {
+        chatConnection = new signalR.HubConnectionBuilder()
+            .withUrl("/chathub") // Conecta ao Hub de Chat
+            .withAutomaticReconnect()
+            .build();
+
+        // Eventos que pertencem ao CHAT
+        chatConnection.on("ReceiveMessage", function (messageData) { 
+            console.log('Received message via SignalR:', messageData); 
+            addMessageToChat(messageData);
+            if ((messageData.SenderId || messageData.senderId) !== currentUserId) {
+                playChatPing();
+            }
+        });
+
+        chatConnection.on("PresenceUpdated", function (users) { 
+            if (Array.isArray(users)) { 
+                onlineUsers = users; 
+                updateOnlineParticipants(users); 
+            }
+        });
+
+        chatConnection.on("UserJoined", function (userName) { 
+            if (!onlineUsers.includes(userName)) { 
+                onlineUsers.push(userName); 
+                updateOnlineParticipants(onlineUsers); 
+            }
+        });
+
+        chatConnection.on("UserLeft", function (userName) { 
+            const index = onlineUsers.indexOf(userName); 
+            if (index > -1) { 
+                onlineUsers.splice(index, 1); 
+                updateOnlineParticipants(onlineUsers); 
+            }
+        });
+
+        chatConnection.onreconnecting(() => updateConnectionStatus('Reconectando Chat...')); 
+        chatConnection.onreconnected(() => { 
+            
+            updateConnectionStatus('Conectado');
+            
+            chatConnection.invoke("JoinSession", sessionId); 
+        });
+        chatConnection.onclose(() => updateConnectionStatus('Chat Desconectado'));
+        try {
+            
+            await chatConnection.start();            
+            console.log('ChatHub connected successfully');
+            updateConnectionStatus('Conectado');
+            
+            await chatConnection.invoke("JoinSession", sessionId);            
+            console.log('Joined chat session:', sessionId);        
+        } 
+        catch (err) {
+            console.error('ChatHub connection error:', err);            
+            updateConnectionStatus('Erro no Chat');        
+        }
+    }
+
+    // Função para a conexão com o Hub de BATTLEMAP
+    async function initializeBattlemapHub() {
+        // A URL aqui deve ser a do seu Hub do Mapa. Se o nome for diferente, ajuste.
+        battlemapConnection = new signalR.HubConnectionBuilder()
+            .withUrl("/battlemaphub")
+            .withAutomaticReconnect()
+            .build();
+
+        // Eventos que pertencem ao BATTLEMAP
+        battlemapConnection.on("TokenAdded", function (tokenData) {    
+            console.log('Token added via SignalR:', tokenData);
+            
+            // ---- AJUSTE AQUI ----
+            // Os dados reais estão dentro de tokenData.token
+            const token = tokenData.token; 
+            if (token) {
+                addTokenToStage(token.id, token.name, token.imageUrl, token.x, token.y, token.ownerId, token.ownerName);
+            }        
+        });
+
+        battlemapConnection.on("TokenMoved", function (data) {
+            
+            const tokenId = data.tokenId || data.TokenId || data.id || arguments[0];            
+            const x = data.x || data.X || arguments[1];            
+            const y = data.y || data.Y || arguments[2];  
+            
+            moveTokenOnStage(tokenId, x, y);        
+        });
+
+        @* battlemapConnection.on("TokenRemoved", function (tokenId) {            
+            console.log('Token removed via SignalR:', tokenId);
+            
+            removeTokenFromStage(tokenId);        
+        }); *@
+
+        battlemapConnection.on("TokenRemoved", function (data) { // 1. Renomeie o parâmetro para 'data' para mais clareza
+            console.log('Token removed via SignalR:', data);
+    
+            // 2. Extraia a ID do token do objeto 'data'
+            const tokenIdToRemove = data.tokenId || data.TokenId;
+
+            if (tokenIdToRemove) {
+                // 3. Passe APENAS a string da ID para a função
+                removeTokenFromStage(tokenIdToRemove); 
+            } else {
+                console.warn('Received remove token event without a valid tokenId', data);
+            }
+        });
+
+        // Listener para mudanças na imagem do mapa
+        battlemapConnection.on("MapImageChanged", function (data) {
+            console.log('Map image changed via SignalR:', data.imageUrl);
+            updateMapImage(data.imageUrl);
+        });
+
+        @* // Eventos que pertencem ao BATTLEMAP
+        battlemapConnection.on("TokenAdded", function (tokenData) { /* ... */ });
+        battlemapConnection.on("TokenMoved", function (data) { /* ... */ });
+        battlemapConnection.on("TokenRemoved", function (data) { /* ... */ });
+        battlemapConnection.on("MapImageChanged", function (data) { /* ... */ }); *@
+
+            // ENCONTRE SEU LISTENER "TokenUpdated"
+
+            // CÓDIGO ADAPTADO COM A CORREÇÃO PARA O CÍRCULO
+
+        battlemapConnection.on("TokenUpdated", function (updatedToken) {
+            // =================================================================
+            //  Logs existentes para verificar o recebimento
+            // =================================================================
+            console.log(`--- Atualização Recebida do Servidor ---`);
+            console.log("Objeto 'updatedToken' completo:", updatedToken);
+            console.log("Tentando aplicar a nova escala:", updatedToken.scale);
+
+            const tokenNode = tokens.get(updatedToken.id);
+
+            if (tokenNode) {
+                // Atualiza posição e rotação (código original preenchido)
+                tokenNode.to({
+                    x: updatedToken.x,
+                    y: updatedToken.y,
+                    rotation: updatedToken.rotation,
+                    duration: 0.2
+                });
+
+                const cellSize = battleMapData?.gridSize || 50;
+                const newSize = cellSize * updatedToken.scale;
+
+                console.log(`Calculando novo tamanho em pixels: ${cellSize}px * ${updatedToken.scale} = ${newSize}px`);
+
+                // =================================================================
+                //  ADAPTADO AQUI: Adicionamos a lógica para redimensionar o círculo
+                // =================================================================
+                /*
+                const circle = tokenNode.findOne('Circle');
+                if (circle) {
+                    console.log("Sincronizando CÍRCULO para hover. Raio atual:", circle.radius());
+                    circle.radius(newSize / 2); // Ajusta o raio do círculo
+                    console.log("NOVO RAIO DO CÍRCULO APLICADO:", circle.radius());
+                } else {
+                    // Este log é útil se o círculo por algum motivo não for encontrado
+                    console.warn("AVISO DE HOVER: Círculo não encontrado para redimensionar. O contorno pode ficar com tamanho incorreto.");
+                }
+                */
+
+                // Lógica original para redimensionar a imagem (continua igual)
+                const image = tokenNode.findOne('Image');
+                if (image) {
+                    console.log("Encontrada imagem interna para redimensionar. Tamanho atual:", image.width());
+                    image.width(newSize);
+                    image.height(newSize);
+                    // Mantemos o offset em zero para que o token seja sempre ancorado pelo canto superior esquerdo.
+                    image.offsetX(0);
+                    image.offsetY(0);
+                    console.log("Novo tamanho da imagem aplicado:", image.width());
+                } else {
+                    console.warn("Nenhuma imagem encontrada dentro do token para redimensionar.");
+                }
+            } else {
+                console.error("Token não encontrado no mapa para aplicar atualização:", updatedToken.id);
+            }
+            console.log(`--- Fim da Atualização ---`);
+        });
+
+        battlemapConnection.on("GridSettingsUpdated", function (settings) {
+           console.log('Configurações do Grid atualizadas via SignalR:', settings);
+
+           // Atualiza o objeto de dados local
+           battleMapData.gridSize = settings.gridSize;
+           battleMapData.gridUnitValue = settings.gridUnitValue;
+           battleMapData.gridUnit = settings.gridUnit;
+       
+           // Força a recriação do tile do grid com o novo tamanho e redesenha o stage
+           tileCache = null; // Invalida o cache do tile para forçar a recriação
+           updateGridPattern();
+           stage.batchDraw(); // Garante que tudo seja redesenhado
+       });
+
+        try {
+            await battlemapConnection.start();
+            console.log('BattlemapHub connected successfully');
+            // O Hub do mapa também precisa saber em qual sessão o usuário está
+            await battlemapConnection.invoke("JoinMap", sessionId);
+        } catch (err) {
+            console.error('BattlemapHub connection error:', err);        
+        }
+    }
+
+    function updateConnectionStatus(status) {
+        const statusElement = document.getElementById('connection-status');
+        if (statusElement) {
+            const iconClass = status === 'Conectado' ? 'text-success' : 
+                             status === 'Reconectando...' ? 'text-warning' : 'text-danger';
+            statusElement.innerHTML = `<i class="bi bi-circle-fill ${iconClass} me-1"></i>${status}`;
+        }
+    }
+
+    // Função para atualizar a imagem de fundo do mapa
+        
+    function updateMapImage(imageUrl) {
+        const mapImage = gridLayer.findOne("#map-image");
+        if (!mapImage) return;
+
+        if (imageUrl) {
+            const imageObj = new Image();
+            imageObj.onload = function () {
+                mapImage.image(imageObj);
+                // A imagem deve preencher o stage, mas suas dimensões devem ser relativas ao stage, não fixas.
+                // O Konva.Image já se escala com o stage se for um filho direto ou de uma layer que é filho do stage.
+                // Para garantir que ela cubra a área visível, podemos definir seu tamanho para o tamanho do stage.
+                // No entanto, para que ela se mova e escale *com* o stage, ela não deve ter um tamanho fixo em pixels.
+                // Em vez disso, vamos garantir que ela tenha o tamanho do stage no momento da criação/atualização
+                // e o Konva cuidará do resto.
+                mapImage.width(stage.width() / stage.scaleX());
+                mapImage.height(stage.height() / stage.scaleY());
+                gridLayer.batchDraw();
+            };
+            imageObj.src = imageUrl;
+        } else {
+            mapImage.image(null);
+            gridLayer.batchDraw();
+        }
+    }
+
+    function initializeBattlemap() {
+        const container = document.getElementById('battlemap-container');
+        const width = container.offsetWidth;
+        const height = container.offsetHeight;
+
+        stage = new Konva.Stage({
+            container: 'battlemap-container',
+            width,
+            height,
+            draggable: true
+        });
+
+        // 1) Layer do FUNDO (mapa e grid)
+        gridLayer = new Konva.Layer({ listening: false }); // Renomeada para mais clareza
+        stage.add(gridLayer);
+
+        // Objeto para a IMAGEM DO MAPA (ficará embaixo)
+        const mapImageShape = new Konva.Image({
+            x: 0,
+            y: 0,
+            width: width,
+            height: height,
+            id: 'map-image' // ID para fácil localização
+        });
+        gridLayer.add(mapImageShape); // Adicionado PRIMEIRO
+
+        // Objeto para o GRID (ficará por cima da imagem)
+        const gridRect = new Konva.Rect({
+            x: 0,
+            y: 0,
+            width: width,
+            height: height,
+            id: 'grid-rect' // ID para fácil localização
+        });
+        gridLayer.add(gridRect); // Adicionado DEPOIS da imagem
+
+        // 2) Layer dos TOKENS (interativa)
+        tokensLayer = new Konva.Layer();
+        stage.add(tokensLayer);
+
+        // =================================================================
+        //  ADICIONE ESTE BLOCO DE CÓDIGO AQUI
+        // =================================================================
+        // Crie uma única instância do Transformer e adicione-a à layer de tokens
+        transformer = new Konva.Transformer({
+            nodes: [],
+            keepRatio: true,
+            anchorStroke: 'dodgerblue',
+            anchorFill: 'white',
+            anchorSize: 10,
+            borderStroke: 'dodgerblue',
+            borderDash: [3, 3],
+        });
+        tokensLayer.add(transformer);
+        console.log(">>> Transformer foi inicializado e adicionado à camada:", transformer); // <--- ADICIONE ESTA LINHA
+
+
+        // Lógica para selecionar/deselecionar tokens
+        stage.on('click tap', function (e) {
+          console.log("--- Início do Evento de Clique ---");
+          console.log("Elemento clicado (target):", e.target);
+
+          if (e.target === stage) {
+              console.log("Clique foi no STAGE. Deselecionando tudo.");
+              deselectAllTokens();
+              return;
+          }
+
+          const group = e.target.getParent();
+          console.log("Tentativa de encontrar o grupo do token. Resultado:", group);
+
+          if (group && tokens.has(group.id()) && canEditTokens) {
+              console.log(`Token [${group.id()}] encontrado e com permissão.`);
+              // Se estiver com Ctrl/Cmd pressionado, permite seleção múltipla (toggle)
+              const isCtrl = e.evt && (e.evt.ctrlKey || e.evt.metaKey);
+              if (isCtrl) {
+                  const currentNodes = transformer.nodes();
+                  const exists = currentNodes.includes(group);
+                  let newNodes;
+                  if (exists) {
+                      // Remove da seleção
+                      newNodes = currentNodes.filter(n => n !== group);
+                  } else {
+                      // Adiciona à seleção existente
+                      newNodes = currentNodes.concat(group);
+                  }
+                  console.log('Seleção múltipla (Ctrl):', newNodes.map(n => n.id()));
+                  transformer.nodes(newNodes);
+              } else {
+                  // Seleção única: substitui qualquer seleção existente
+                  console.log('Seleção única');
+                  transformer.nodes([group]);
+              }
+          } else {
+              console.log("Condição de seleção FALHOU. Deselecionando tudo.");
+              // Vamos detalhar por que falhou:
+              console.log("Grupo encontrado?", !!group);
+              if (group) console.log("ID do grupo:", group.id(), "Existe no Map 'tokens'?", tokens.has(group.id()));
+              console.log("Pode editar tokens?", canEditTokens);
+              deselectAllTokens();
+          }
+      });
+
+            // Base do grid em "unidades do mundo"
+        const baseGridSize = (battleMapData?.gridSize) || 50;
+
+        // Cria/recria o tile do grid considerando o scale atual
+        function makeGridTile(base, scale) {
+            // Queremos que cada célula na TELA tenha base*scale pixels,
+            // mantendo linhas finas (~1px). Então desenhamos o tile já no tamanho escalado
+            // A espessura da linha deve ser sempre 1px na tela, independente do zoom.
+            const lineThickness = 1 / stage.scaleX(); // Ajusta a espessura da linha para ser 1px na tela
+       const cell = Math.max(8, Math.round(base * scale)); // evita tile minúsculo
+            const size = cell * 2;
+            const c = document.createElement('canvas');
+            c.width = size;
+            c.height = size;
+            const ctx = c.getContext('2d');
+
+            ctx.clearRect(0, 0, size, size);
+            // linha ~1px (não escale a linha; desenhe no tamanho final)
+            ctx.strokeStyle = '#ddd';
+            ctx.globalAlpha = 0.5;
+            ctx.lineWidth = lineThickness; // Usa a espessura de linha ajustada
+            for (let x = 0; x <= size; x += cell) {
+                ctx.beginPath();
+                // 0.5 para alinhar no pixel (linhas nítidas)
+                ctx.moveTo(x + 0.5, 0);
+                ctx.lineTo(x + 0.5, size);
+                ctx.stroke();
+            }
+            // horizontais
+            for (let y = 0; y <= size; y += cell) {
+                ctx.beginPath();
+                ctx.moveTo(0, y + 0.5);
+                ctx.lineTo(size, y + 0.5);
+                ctx.stroke();
+            }
+            return { tile: c, cellPx: cell, tilePx: size };
+        }
+
+        // Atualiza o pattern (chame em pan/zoom/resize)
+        let lastScale = 1;
+        let tileCache = null; // guarda {tile, cellPx, tilePx} do último scale
+
+            // No seu arquivo Pages/Sessions/BattlemapMobile.cshtml
+
+        function updateGridPattern() {
+            // MUDANÇA: Procura o objeto específico do grid pelo ID que definimos
+            const gridRect = gridLayer.findOne('#grid-rect');
+            // MUDANÇA: Verificação de segurança para evitar erros
+            if (!gridRect) return;
+
+            const scale = stage.scaleX() || 1;
+            const pos = stage.position();
+
+            // Recria tile apenas quando o scale mudou significativamente
+            if (!tileCache || Math.abs(scale - lastScale) > 0.001) {
+                tileCache = makeGridTile(baseGridSize, scale);
+
+                // MUDANÇA: Usa a nova variável gridRect
+                gridRect.fillPatternImage(tileCache.tile);
+
+                // Padrão na escala 1: o tile já está no tamanho de tela correto
+                // MUDANÇA: Usa a nova variável gridRect
+                gridRect.fillPatternScale({ x: 1, y: 1 });
+                gridRect.fillPatternOffset({ x: 0, y: 0 }); // Reset offset when recreating tile
+
+                lastScale = scale;
+            }
+
+            // Offset do pattern alinha o grid ao "mundo" (pan)
+            // Convertemos deslocamento do mundo (pos) para pixels do tile atual.
+            // Offset do pattern alinha o grid ao "mundo" (pan)
+            // Convertemos deslocamento do mundo (pos) para pixels do tile atual.
+            // O offset deve ser relativo ao tile, não ao stage.
+            const offX = ((-pos.x / scale) % tileCache.cellPx + tileCache.cellPx) % tileCache.cellPx;
+            const offY = ((-pos.y / scale) % tileCache.cellPx + tileCache.cellPx) % tileCache.cellPx;
+
+            // MUDANÇA: Usa a nova variável gridRect
+            gridRect.fillPatternOffset({ x: offX, y: offY });
+
+            gridLayer.batchDraw(); // recomendado pela doc (Konva faz throttle)
+        }
+
+        // Zoom relativo ao ponteiro (demo oficial)
+        stage.on('wheel', (e) => {
+            e.evt.preventDefault();
+            const scaleBy = 1.06;
+            const oldScale = stage.scaleX();
+            const pointer = stage.getPointerPosition();
+            const dir = e.evt.deltaY > 0 ? -1 : 1;
+            const newScale = dir > 0 ? oldScale * scaleBy : oldScale / scaleBy;
+
+            const mousePointTo = {
+                x: (pointer.x - stage.x()) / oldScale,
+                y: (pointer.y - stage.y()) / oldScale
+            };
+
+            stage.scale({ x: newScale, y: newScale });
+            stage.position({
+                x: pointer.x - mousePointTo.x * newScale,
+                y: pointer.y - mousePointTo.y * newScale
+            });
+
+            updateGridPattern(); // refaz tile (se mudou scale) e offset
+        });
+
+        // Pan e mudanças de transform
+        stage.on('dragmove xChange yChange scaleXChange scaleYChange', updateGridPattern);
+
+        // Resize do container → mantém retângulo cobrindo o stage
+        function resizeStage() {
+            const w = container.offsetWidth;
+            const h = container.offsetHeight;
+            stage.size({ width: w, height: h });
+            bgRect.size({ width: w, height: h });
+            updateGridPattern();
+        }
+        // chame resizeStage() se você já tem um listener de resize externo
+
+        // Carga inicial de tokens (CORRIGIDO)
+        if (tokensData && tokensData.length > 0) {
+            tokensData.forEach(token => {
+                addTokenToStage(
+                    token.id,
+                    token.name,
+                    token.imageUrl,
+                    token.x,
+                    token.y,
+                    token.ownerId,
+                    token.ownerName,
+                    token.scale,
+                    token.rotation
+                );
+            });
+        }
+
+        // Primeiro desenho do grid
+        updateGridPattern();
+
+        console.log('Battlemap initialized');
+    }        
+
+    function addTokenToStage(tokenId, tokenName, imageUrl, tokenX, tokenY, ownerId, ownerName, tokenScale = 1, tokenRotation = 0) {
+        console.log('Adding token to stage:', tokenId, tokenName);
+        if (tokens.has(tokenId)) {
+            console.log('Token already exists, skipping:', tokenId);
+            return;
+        }
+
+        const cellSize = battleMapData?.gridSize || 50;
+        const finalSize = cellSize * tokenScale; // <-- MUDANÇA: Usa a escala para definir o tamanho
+
+        const tokenGroup = new Konva.Group({
+          x: snapToGrid(tokenX),
+          y: snapToGrid(tokenY),
+          draggable: (canEditTokens || ownerId === currentUserId),
+          id: tokenId,
+          rotation: tokenRotation, 
+          // PROPRIEDADES DE SOMBRA
+          shadowColor: 'white',
+          shadowBlur: 10,
+          shadowOpacity: 0.7,
+          shadowEnabled: false // Começa desativada
+        });
+
+        /**
+         * Ao iniciar o drag armazenamos a diferença entre a posição do ponteiro e a posição do grupo.
+         * Isso evita "saltos" ao começar a arrastar, mantendo o movimento relativo ao ponto clicado.
+         */
+        tokenGroup.on('dragstart', function() {
+            // Desativa o pan do mapa enquanto arrastamos um token
+            stage.draggable(false);
+            const pointer = stage.getPointerPosition();
+            if (pointer) {
+                // Guarda o deslocamento do ponteiro em relação ao canto superior esquerdo do grupo
+                this._dragPointerOffsetX = pointer.x - this.x();
+                this._dragPointerOffsetY = pointer.y - this.y();
+            } else {
+                this._dragPointerOffsetX = 0;
+                this._dragPointerOffsetY = 0;
+            }
+        });
+
+        /**
+         * Ao soltar o token, calculamos o novo posicionamento "snap"ado considerando
+         * o retângulo visual real (bounding box) do grupo. Usamos Math.round para
+         * escolher a célula mais próxima, minimizando deslocamentos bruscos. O novo
+         * canto superior esquerdo do token será alinhado ao canto da célula do grid.
+         */
+        tokenGroup.on('dragend', function() {
+            // Reativa o pan do mapa
+            stage.draggable(true);
+
+            const cell = (battleMapData?.gridSize) || 50;
+            // O getClientRect retorna o bounding box visual do grupo considerando escala/rotação
+            const rect = this.getClientRect({ relativeTo: stage });
+
+            // Calcula o índice da célula mais próxima para o canto superior-esquerdo do token
+            const snappedX = Math.round(rect.x / cell) * cell;
+            const snappedY = Math.round(rect.y / cell) * cell;
+
+            // Determina a diferença entre onde o bounding box está e onde deveria estar
+            const dx = snappedX - rect.x;
+            const dy = snappedY - rect.y;
+
+            // Aplica o delta à posição do grupo; isso mantém offsets internos intactos
+            this.position({
+                x: this.x() + dx,
+                y: this.y() + dy
+            });
+
+            // Limpa variáveis de offset salvas
+            delete this._dragPointerOffsetX;
+            delete this._dragPointerOffsetY;
+
+            // Garante que a camada seja redesenhada para refletir a nova posição
+            const layer = this.getLayer();
+            if (layer) layer.batchDraw();
+
+            // Envia a nova posição ao servidor. Utilizamos a posição do grupo (top-left) em pixels.
+            if (battlemapConnection) {
+                const updates = { X: this.x(), Y: this.y() };
+                battlemapConnection.invoke('UpdateToken', sessionId, tokenId, updates)
+                    .catch(err => console.error('Error updating token position:', err));
+            }
+        });      
+
+        // Carrega a imagem
+        if (imageUrl) {
+            const imageObj = new Image();
+            imageObj.onload = function() {
+                const tokenImage = new Konva.Image({
+                    image: imageObj,
+                    width: finalSize,
+                    height: finalSize,
+                    offsetX: 0, // Desenha a partir do canto esquerdo
+                    offsetY: 0  // Desenha a partir do topo
+                });
+                //tokenCircle.visible(false);
+                tokenGroup.add(tokenImage);
+                tokensLayer.batchDraw();
+            };
+            imageObj.crossOrigin = 'Anonymous';
+            imageObj.src = imageUrl;
+        }
+
+        /*
+        // Efeitos de Hover
+        // Efeitos de "hover" (mouse sobre o token)
+          tokenGroup.on('mouseenter', function() {
+              document.body.style.cursor = 'pointer';
+
+              // Encontra o círculo dentro do grupo
+              const circle = this.findOne('Circle');
+              if (circle) {
+                  circle.fillEnabled(false);
+                  circle.stroke('green');      // Define a cor do contorno
+                  circle.strokeWidth(3);      // Define a espessura do contorno
+                  circle.strokeEnabled(true); // Mostra o contorno
+                  circle.visible(true);       // Garante que o círculo esteja visível
+              }
+              tokensLayer.batchDraw();
+          });
+
+          tokenGroup.on('mouseleave', function() {
+              document.body.style.cursor = 'default';
+
+              // Encontra o círculo dentro do grupo
+              const circle = this.findOne('Circle');
+              if (circle) {
+                  circle.strokeEnabled(false); // Esconde o contorno
+                  circle.fillEnabled(true);
+                  // Se o token tiver uma imagem, escondemos o círculo novamente.
+                  // Se não tiver imagem, o círculo continua visível com seu preenchimento original.
+                  if (this.findOne('Image')) {
+                      circle.visible(false);
+                  }
+              }
+              tokensLayer.batchDraw();
+          });
+          */
+        @* tokenGroup.on('mouseenter', function() {
+            document.body.style.cursor = 'pointer';
+            this.scale({ x: 1.1, y: 1.1 });
+            tokensLayer.batchDraw();
+        });
+
+        tokenGroup.on('mouseleave', function() {
+            document.body.style.cursor = 'default';
+            this.scale({ x: 1, y: 1 });
+            tokensLayer.batchDraw();
+        }); *@
+
+        // Menu de contexto (clique direito) para remover o token
+        tokenGroup.on('contextmenu', function(e) {
+            e.evt.preventDefault();
+            if (confirm(`Remover token "${tokenName}"?`)) {
+                if (battlemapConnection) {
+                    battlemapConnection.invoke('RemoveToken', sessionId, tokenId)
+                        .catch(err => console.error('Error removing token:', err));
+                }
+            }
+        });
+
+
+        // =================================================================
+        //  NOVO EVENTO ADICIONADO AQUI
+        // =================================================================
+        tokenGroup.on('transformend', function() {
+            const node = this;
+            // A escala real do token agora é a escala do grupo * o tamanho da célula
+            // mas para o nosso modelo, só precisamos da escala relativa à célula.
+            const newRelativeScale = node.scaleX();
+            const newRotation = node.rotation();
+
+            // IMPORTANTE: Resetamos a escala do Konva.Group para 1.
+            // O tamanho visual real é controlado pelas formas internas (imagem/círculo)
+            // que serão atualizadas pelo evento "TokenUpdated" do SignalR.
+            // Isso evita que as transformações se acumulem.
+            node.scaleX(1);
+            node.scaleY(1);
+
+            console.log(`--- Transformação Finalizada ---`);
+            console.log(`Escala ANTES da transformação ('tokenScale'): ${tokenScale}`);
+            console.log(`Escala da transformação ATUAL ('newRelativeScale'): ${newRelativeScale}`);
+
+            const finalAbsoluteScale = newRelativeScale * tokenScale;
+            console.log(`Cálculo da nova escala final: ${newRelativeScale} * ${tokenScale} = ${finalAbsoluteScale}`);
+
+            if (battlemapConnection) {
+                const updates = {
+                    Scale: finalAbsoluteScale,
+                    Rotation: newRotation
+                };
+
+                console.log("Enviando para o servidor:", updates); // <<< Verifique o que está sendo enviado
+
+                battlemapConnection.invoke('UpdateToken', sessionId, tokenId, updates)
+                    .catch(err => console.error('Error updating token transform:', err));
+            }
+        });
+        // =================================================================
+
+        tokensLayer.add(tokenGroup);
+        tokens.set(tokenId, tokenGroup);
+        tokensLayer.batchDraw();
+        console.log(`Token "${tokenName}" added successfully.`);
+    }
+
+    function removeTokenFromStage(tokenId) {
+        
+        console.log('Removing token from stage:', tokenId);
+
+        const token = tokens.get(tokenId);
+        if (token) {
+            token.destroy();
+            tokens.delete(tokenId);
+            tokensLayer.batchDraw();
+            console.log(`Token ${tokenId} removed from stage`);
+        } else {
+            console.warn(`Token ${tokenId} not found for removal`);
+        }
+    }
+
+    function moveTokenOnStage(tokenId, x, y) {
+        
+        console.log('Moving token on stage:', tokenId, x, y);
+
+        const token = tokens.get(tokenId);
+        if (token) {
+            token.x(x);
+            token.y(y);
+            tokensLayer.batchDraw();
+            console.log(`Token ${tokenId} moved to (${x}, ${y})`);
+        } else {
+            console.warn(`Token ${tokenId} not found for movement`);
+        }
+    }
+
+    function addMessageToChat(messageData) {
+        console.log('Adding message to chat:', messageData);
+    
+        const chatMessages = document.getElementById('chat-messages');
+        if (!chatMessages) {
+            console.error('Chat messages container not found');
+            return;
+        }
+    
+        // Verificar se a mensagem já existe
+        const messageId = messageData.id || messageData.MessageId;
+        const existingMessage = chatMessages.querySelector(`[data-message-id="${messageId}"]`);
+        if (existingMessage) {
+            console.log('Message already exists, skipping');
+            return;
+        }
+    
+        const messageElement = createMessageElement(messageData);
+        chatMessages.appendChild(messageElement);
+        //chatMessages.scrollTop = chatMessages.scrollHeight;
+    
+        console.log(`Added message ${messageId} from ${messageData.senderName || messageData.SenderName}`);
+        scrollToBottom();
+    }
+
+    function scrollToBottom() {
+        const chatMessages = document.getElementById('chat-messages');
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+        newMessageCount = 0;
+        updateNewMessageButton();
+    }
+
+        function updateNewMessageButton() {
+            let button = document.getElementById('new-messages-button');
+
+            if (newMessageCount > 0) {
+                if (!button) {
+                    button = document.createElement('button');
+                    button.id = 'new-messages-button';
+                    button.className = 'btn btn-primary btn-sm position-fixed';
+                    button.style.cssText = 'bottom: 100px; right: 20px; z-index: 1000; border-radius: 20px;';
+                    button.onclick = scrollToBottom;
+                    document.body.appendChild(button);
+                }
+                button.textContent = `↓ Novas mensagens (${newMessageCount})`;
+                button.style.display = 'block';
+            } else if (button) {
+                button.style.display = 'none';
+            }
+        }
+
+    function createMessageElement(messageData) {
+        const messageDiv = document.createElement('div');
+        const messageId = messageData.id || messageData.MessageId;
+        const messageType = messageData.type || messageData.Type || messageData.messageType || messageData.MessageType;
+        const senderName = messageData.senderName || messageData.SenderName || messageData.authorName;
+        const content = messageData.content || messageData.Content;
+        const createdAt = new Date(messageData.createdAt || messageData.CreatedAt);
+        const isAiGenerated = messageData.isAiGenerated || messageData.IsAiGenerated;
+        const metadata = messageData.metadata || messageData.Metadata;
+    
+        messageDiv.className = `message-item mb-3 ${getMessageCssClass(messageType)}`;
+        messageDiv.setAttribute('data-message-id', messageId);
+    
+        const timeString = createdAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    
+        let messageContent = content;
+    
+        // Se for uma rolagem de dados e tiver metadata, processar
+        if (messageType === 'DiceRoll' && metadata) {
+            try {
+                const rollResult = JSON.parse(metadata);
+                messageContent = createRollDisplay(rollResult);
+            } catch (e) {
+                console.error('Erro ao processar metadata da rolagem:', e);
+                messageContent = `<div class="roll-msg roll-error">
+                    <div class="roll-header">
+                        <span class="roll-user">${senderName}</span>
+                        <span class="roll-verb">tentou rolar</span>
+                        <span class="roll-expr">${content}</span>
+                        <span class="roll-total">ERRO</span>
+                    </div>
+                    <div class="roll-details">
+                        <div class="roll-error-msg">
+                            <strong>[ERRO] PARSE_ERROR:</strong> Erro ao processar resultado da rolagem
+                        </div>
+                    </div>
+                </div>`;
+            }
+        }
+    
+        messageDiv.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="message-header">
+                    <strong class="${getSenderCssClass(messageType)}">
+                        ${getSenderDisplayName(messageType, senderName)}
+                    </strong>
+                    ${isAiGenerated ? '<span class="badge bg-success ms-1">IA</span>' : ''}
+                    ${messageType === 'DiceRoll' ? '<span class="badge bg-warning ms-1">Dado</span>' : ''}
+                </div>
+                <small class="text-muted">${timeString}</small>
+            </div>
+            <div class="message-content mt-1">
+                ${messageContent}
+            </div>
+        `;
+    
+        return messageDiv;
+    }
+
+    function getMessageCssClass(messageType) {
+        switch (messageType) {
+            case 'NarratorDescription': return 'narrator-message';
+            case 'CharacterAction': return 'character-action';
+            case 'SystemMessage': return 'system-message';
+            case 'DiceRoll': return 'dice-roll';
+            case 'AiCharacterResponse': return 'ai-message';
+            default: return '';
+        }
+    }
+
+    function getSenderCssClass(messageType) {
+        switch (messageType) {
+            case 'NarratorDescription': return 'sender-narrator';
+            case 'CharacterAction': return 'sender-character';
+            case 'SystemMessage': return 'sender-system';
+            case 'DiceRoll': return 'sender-dice';
+            case 'AiCharacterResponse': return 'sender-ai';
+            default: return '';
+        }
+    }
+
+    function getSenderDisplayName(messageType, senderName) {
+        switch (messageType) {
+            case 'NarratorDescription': return `🎭 ${senderName}`;
+            case 'CharacterAction': return `⚔️ ${senderName}`;
+            case 'SystemMessage': return '🤖 Sistema';
+            case 'DiceRoll': return `🎲 ${senderName}`;
+            case 'AiCharacterResponse': return `🤖 ${senderName}`;
+            default: return senderName;
+        }
+    }
+
+    // Atualiza a lista de participantes online/NPC ativos no painel lateral
+        function updateOnlineParticipants(users = []) {
+            const container = document.getElementById('online-participants');
+            if (!container) return;
+
+            // limpa de forma eficiente
+            container.replaceChildren();
+
+            const frag = document.createDocumentFragment();
+
+            for (const u of users) {
+                // 1) resolve o nome exibido
+                const name =
+                    typeof u === 'string'
+                        ? u
+                        : (u?.displayName ?? u?.name ?? u?.userName ?? u?.username ?? 'Usuário');
+
+                // 2) monta o item de forma segura (sem innerHTML para o nome)
+                const div = document.createElement('div');
+                div.className = 'online-participant';
+
+                const dot = document.createElement('span');
+                dot.className = 'online-indicator';
+                div.appendChild(dot);
+
+                div.appendChild(document.createTextNode(' ' + name));
+
+                // opcional: guarde o id como data-attribute (útil para futuro)
+                if (u && typeof u === 'object' && u.userId) {
+                    div.dataset.userId = u.userId;
+                }
+
+                frag.appendChild(div);
+            }
+
+            container.appendChild(frag);
+        }
+
+
+    // Função para criar o display de rolagem de dados       
+    function createRollDisplay(rollResult) {
+        if (!rollResult) return '';
+
+        // Extrai os dados brutos.
+        const isError = rollResult.IsError || rollResult.isError;
+        const user = rollResult.User || rollResult.user;
+        const expression = rollResult.Expression || rollResult.expression;
+        const total = rollResult.Total || rollResult.total;
+    
+        // Define as classes CSS com base na ocorrência de erro.
+        const rollClass = isError ? 'roll-msg roll-error' : 'roll-msg';
+        const totalClass = isError ? 'roll-total' : 'roll-total';
+
+        // --- LÓGICA PARA GERAR SUMMARY E DETAILS DINAMICAMENTE ---
+        let summary = '';
+        let details = '';
+
+        if (!isError && rollResult.Blocks && rollResult.Blocks.length > 0) {
+            // 1. Constrói o Summary
+            const diceParts = rollResult.Blocks.map(block => {
+                const values = block.KeptValues || [];
+                return values.join('; ');
+            }).join('; ');
+            const sumOfDice = rollResult.Blocks.reduce((acc, block) => acc + (block.Sum || 0), 0);
+            summary = `${user} rolou ${expression} — dados: ${diceParts} = ${sumOfDice}`;
+
+            // 2. Constrói os Details
+            const detailsParts = rollResult.Blocks.map(block => {
+                const values = block.Faces ? block.Faces.map(f => f.Value).join(', ') : '';
+                return `${block.Notation} → [${values}] = ${block.Sum}`;
+            }).join(' | ');
+
+            if(rollResult.Seed) {
+                details = `Seed: ${rollResult.Seed} • Regra: ${rollResult.Ruleset} | ${detailsParts}`;
+            } else {
+                details = `Regra: ${rollResult.Ruleset} | ${detailsParts}`;
+            }
+        } else if (isError) {
+            summary = rollResult.ErrorMessage || 'Ocorreu um erro na rolagem.';
+        }
+        // --- FIM DA LÓGICA DE GERAÇÃO ---
+
+        // Monta o HTML final com os dados gerados
+        let html = `<div class="${rollClass}">
+            <div class="roll-header">
+                <span class="roll-user">${user}</span>
+                <span class="roll-verb">rolou</span>
+                <span class="roll-expr">${expression}</span>
+                <span class="${totalClass}">${isError ? 'ERRO' : total}</span>`;
+
+        if (isError || summary || details) {
+            // Botão de detalhes aparece apenas se houver algo para mostrar
+            html += `
+                <a href="#" class="btn btn-outline-secondary roll-toggle"
+                   onclick="toggleRollDetails(this); return false;">
+                   Detalhes
+                </a>`;
+        }
+
+        html += `
+            </div>`; // fecha roll-header
+
+        // Conteúdo condicional
+        if (isError) {
+            html += `
+            <div class="roll-details">
+                <div class="roll-error-msg">
+                    <strong>[ERRO] ${errorCode || ''}:</strong> ${errorMessage || ''}
+                </div>
+            </div>`;
+        } else {
+            if (summary) {
+                html += `<div class="roll-summary">${summary}</div>`;
+            }
+
+            if (details) {
+                html += `
+                <div class="roll-details" hidden>
+                    <div class="roll-line">${details.replace(/\n/g, '<br>')}</div>
+                </div>`;
+            }
+        }
+
+        html += `</div>`; // fecha roll-msg
+        return html;
+
+    }
+
+    // Form submission - REMOVIDA A LÓGICA DE EXIBIÇÃO LOCAL
+    async function handleFormSubmit(event) {
+        event.preventDefault();
+    
+        const form = event.target;
+        const formData = new FormData(form);
+        const contentInput = form.querySelector('input[name="content"]');
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalText = submitButton.innerHTML;
+    
+        // Disable form to prevent double submission
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<div class="spinner-border spinner-border-sm"></div>';
+    
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+                }
+            });
+        
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success) {
+                    contentInput.value = ''; // Clear input field immediately
+                
+                    // Reset message type to default
+                    const messageTypeSelect = form.querySelector('select[name="messageType"]');
+                    if (messageTypeSelect) {
+                        messageTypeSelect.value = '0';
+                    }
+                
+                    console.log("Message sent successfully via AJAX");
+                    // A mensagem será exibida via SignalR, não aqui
+                } else {
+                    throw new Error('Server returned error');
+                }
+            } else {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+        } catch (error) {
+            console.error('Error sending message:', error);
+            alert('Erro ao enviar mensagem. Tente novamente.');
+        } finally {
+            // Re-enable form
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalText;
+        }
+    }
+
+    // Battlemap controls
+    function zoomIn() {
+        const newScale = Math.min(currentScale * 1.2, battleMapData.zoomMax || 2.0);
+        stage.scale({ x: newScale, y: newScale });
+        currentScale = newScale;
+        
+        stage.batchDraw();
+    }
+
+    function zoomOut() {
+        const newScale = Math.max(currentScale / 1.2, battleMapData.zoomMin || 0.5);
+        stage.scale({ x: newScale, y: newScale });
+        currentScale = newScale;
+        
+        stage.batchDraw();
+    }
+
+    function resetView() {
+        stage.position({ x: 0, y: 0 });
+        stage.scale({ x: 1, y: 1 });
+        currentScale = 1;
+        
+        stage.batchDraw();
+    }
+
+    function toggleGrid() {
+        gridVisible = !gridVisible;
+        stage.batchDraw();
+    }
+
+    function addToken() {
+        const name = prompt('Nome do token:');
+        if (!name) return;
+    
+        const x = stage.width() / 2;
+        const y = stage.height() / 2;
+    
+        // Send via SignalR
+        if (battlemapConnection) {
+            const battleMapId = battleMapData.id || battleMapData.Id;
+            battlemapConnection.invoke('AddToken', sessionId, battleMapId, name, '', x, y)
+                .catch(err => console.error('Error adding token:', err));
+        }
+    }
+
+    // Initialize everything when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        const contentInput = document.querySelector('input[name="content"]');
+    
+        // Set up event listeners
+        if (contentInput) {
+            contentInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    document.getElementById('chat-form').dispatchEvent(new Event('submit'));
+                }
+            });
+        }
+
+        // Initialize SignalR Hubs
+        initializeChatHub();
+        initializeBattlemapHub();
+    
+        // Initialize battlemap
+        setTimeout(() => {
+            initializeBattlemap();
+            // Carrega a imagem do mapa assim que o stage for criado
+            if (battleMapData.backgroundUrl) {
+                updateMapImage(battleMapData.backgroundUrl);
+            }
+        }, 100);
+    
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            if (stage) {
+                const container = document.getElementById('battlemap-container');
+                stage.width(container.offsetWidth);
+                stage.height(container.offsetHeight);
+                stage.batchDraw();
+            }
+        });
+
+        // Setup chat resizer drag functionality
+        const resizer = document.getElementById('chat-resizer');
+        if (resizer) {
+            const chatCol = resizer.parentElement;
+            const mapCol = chatCol.previousElementSibling;
+            let startX, startChatWidth, startMapWidth;
+            const onDrag = function(e) {
+                const delta = startX - e.clientX;
+                let newChatWidth = startChatWidth + delta;
+                let newMapWidth = startMapWidth - delta;
+                const minWidth = 200;
+                const totalWidth = chatCol.parentElement.offsetWidth;
+                if (newChatWidth < minWidth) {
+                    newChatWidth = minWidth;
+                    newMapWidth = totalWidth - minWidth;
+                }
+                if (newMapWidth < minWidth) {
+                    newMapWidth = minWidth;
+                    newChatWidth = totalWidth - minWidth;
+                }
+                chatCol.style.flex = `0 0 ${newChatWidth}px`;
+                mapCol.style.flex = `0 0 ${newMapWidth}px`;
+                if (stage) {
+                    stage.width(mapCol.offsetWidth);
+                    stage.batchDraw();
+                }
+            };
+            const stopDrag = function() {
+                document.removeEventListener('mousemove', onDrag);
+                document.removeEventListener('mouseup', stopDrag);
+            };
+            resizer.addEventListener('mousedown', function(e) {
+                startX = e.clientX;
+                startChatWidth = chatCol.offsetWidth;
+                startMapWidth = mapCol.offsetWidth;
+                document.addEventListener('mousemove', onDrag);
+                document.addEventListener('mouseup', stopDrag);
+            });
+        }
+
+        // Initialize the online participants UI with the current empty list
+        updateOnlineParticipants(onlineUsers);
+
+        // Rola o chat para o final assim que a página carrega, garantindo que as mensagens mais recentes fiquem visíveis.
+        scrollToBottom();
+    });
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', function() {
+        if (chatConnection) {
+            chatConnection.invoke("LeaveSession", sessionId);
+            chatConnection.stop();
+        }
+    });
+
+
+    // Adiciona o evento para o botão principal que abre o modal
+    document.getElementById('add-token-btn')?.addEventListener('click', function() {
+        const modal = new bootstrap.Modal(document.getElementById('tokenModal'));
+        modal.show();
+    });
+
+    // Adiciona o evento para o botão de alterar mapa
+    document.getElementById('change-map-btn')?.addEventListener('click', function() {
+        const modal = new bootstrap.Modal(document.getElementById('mapModal'));
+        
+        // Atualiza o preview da imagem atual
+        const currentPreview = document.getElementById('current-map-preview');
+        if (battleMapData.backgroundUrl) {
+            currentPreview.innerHTML = `<img src="${battleMapData.backgroundUrl}" class="img-fluid" style="max-height: 80px;" alt="Imagem atual do mapa">`;
+        } else {
+            currentPreview.innerHTML = '<span class="text-muted">Nenhuma imagem definida</span>';
+        }
+        
+        modal.show();
+    });
+
+    // Adiciona o evento para o botão "Criar" DENTRO do modal
+    document.getElementById('create-token-btn')?.addEventListener('click', function() {
+        console.log('teste');
+        // Chama a função principal que faz a mágica acontecer
+        addTokenFromModal();
+
+        // Esconde o modal após o clique
+        const modal = bootstrap.Modal.getInstance(document.getElementById('tokenModal'));
+        modal.hide();
+    });
+
+        /**
+     * Lê os dados do modal, calcula a posição central e envia a solicitação
+     * de criação de token via SignalR.
+     */
+    function addTokenFromModal() {
+        // 1. Pega os valores dos campos do modal
+        const name = document.getElementById('token-name')?.value || 'Novo Token';
+        const imageUrl = document.getElementById('token-image')?.value || null;
+
+        // 2. Calcula a posição central no mapa (ou onde você preferir)
+        //    A função snapToGrid é uma boa prática para alinhar o token à grade.
+        const centerX = snapToGrid(stage.width() / 2);
+        const centerY = snapToGrid(stage.height() / 2);
+
+        // 3. Invoca o método do Hub SignalR com os dados do formulário
+        if (battlemapConnection) {
+            // Lembre-se que as variáveis 'sessionId' e 'battleMapId'
+            // devem estar disponíveis no escopo global, injetadas pelo Razor.
+            //battlemapConnection.invoke('AddToken', sessionId, battleMapId, name, imageUrl, centerX, centerY)
+                const battleMapId = battleMapData.id || battleMapData.Id;
+                battlemapConnection.invoke('AddToken', sessionId, battleMapId, name, imageUrl, centerX, centerY)
+                .then(() => {
+                    // 4. Limpa o formulário após o sucesso para a próxima criação
+                    if (document.getElementById('token-name')) document.getElementById('token-name').value = '';
+                    if (document.getElementById('token-image')) document.getElementById('token-image').value = '';
+                })
+                .catch(err => console.error('Error adding token:', err)); // 5. Captura e exibe erros no console
+        }
+    }
+    @* function snapToGrid(value) {
+        const cell = (battleMapData?.gridSize) || 50;
+        // Calcula a coordenada da linha da grade mais próxima (à esquerda ou acima)
+        const startOfCell = Math.floor(value / cell) * cell;
+        // Adiciona metade do tamanho da célula para encontrar o centro
+        return startOfCell + (cell / 2);
+    } *@
+        
+    function snapToGrid(value) {
+        const cell = (battleMapData?.gridSize) || 50;
+        return Math.floor(value / cell) * cell;
+    }
+
+    // ===================================================================
+    // Listener global de teclado para remover tokens selecionados com a tecla Delete
+    // ===================================================================
+    document.addEventListener('keydown', function(ev) {
+        // Ignora se não for a tecla Delete
+        if (ev.key !== 'Delete') return;
+        // Apenas prossegue se o usuário tiver permissão de edição de tokens
+        if (!canEditTokens) return;
+        const selectedNodes = transformer ? transformer.nodes() : [];
+        if (!selectedNodes || selectedNodes.length === 0) return;
+        // Evita o comportamento padrão do navegador ao pressionar Delete
+        ev.preventDefault();
+        console.log('Tecla Delete pressionada. Removendo tokens selecionados:', selectedNodes.map(n => n.id()));
+        selectedNodes.forEach(node => {
+            const tid = node.id();
+            if (battlemapConnection && tid) {
+                battlemapConnection.invoke('RemoveToken', sessionId, tid)
+                    .catch(err => console.error('Error removing token:', err));
+            }
+        });
+        // Após enviar remoção, limpa a seleção visual
+        if (transformer) transformer.nodes([]);
+    });
+
+</script>
+
+<!-- CSS e JS para sistema de rolagens -->
+<link rel="stylesheet" href="~/css/roll-display.css" />
+<script src="~/js/toggle-details.js"></script>
+
+<div class="modal fade" id="tokenModal" tabindex="-1" aria-labelledby="tokenModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-md">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tokenModalLabel">Novo Token</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Nome -->
+                <div class="mb-3">
+                    <label for="token-name" class="form-label">Nome <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="token-name" placeholder="Ex.: Guerreiro" maxlength="100" required>
+                </div>
+
+                <!-- Preview -->
+                <div class="d-flex align-items-center mb-3">
+                    <div id="token-preview"
+                         class="rounded-circle me-3"
+                         style="width:64px;height:64px;background:#2d6cdf;background-size:cover;background-position:center;">
+                    </div>
+                    <small class="text-muted">Preview 64×64. Ajuste a textura abaixo.</small>
+                </div>
+
+                <!-- Abas -->
+                <ul class="nav nav-tabs" id="tokenTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="upload-tab" data-bs-toggle="tab" data-bs-target="#tab-upload" type="button" role="tab">
+                            Upload
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="url-tab" data-bs-toggle="tab" data-bs-target="#tab-url" type="button" role="tab">
+                            URL
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="gallery-tab" data-bs-toggle="tab" data-bs-target="#tab-gallery" type="button" role="tab">
+                            Minha Galeria
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content pt-3">
+                    <!-- Upload -->
+                    <div class="tab-pane fade show active" id="tab-upload" role="tabpanel" aria-labelledby="upload-tab">
+                        <div class="mb-2">
+                            <input type="file" class="form-control" id="token-file" accept="image/*">
+                        </div>
+                        <small class="text-muted">Tipos: jpeg, png, webp, gif. Tamanho máx.: 10 MB.</small>
+                    </div>
+
+                    <!-- URL -->
+                    <div class="tab-pane fade" id="tab-url" role="tabpanel" aria-labelledby="url-tab">
+                        <div class="mb-3">
+                            <label class="form-label" for="token-image-url">URL da Imagem</label>
+                            <input type="url" class="form-control" id="token-image-url" placeholder="https://exemplo.com/imagem.png">
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary" id="btn-test-url">Testar URL</button>
+                    </div>
+
+                    <!-- Galeria -->
+                    <div class="tab-pane fade" id="tab-gallery" role="tabpanel" aria-labelledby="gallery-tab">
+                        <div id="media-gallery" class="row g-2">
+                            <!-- thumbnails preenchidos via JS (GET /api/Media/session/{sessionId}?mediaType=image) -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <div class="me-auto text-danger small" id="token-error" style="display:none;"></div>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="create-token-btn">Criar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Modal para Alterar Imagem do Mapa -->
+<div class="modal fade" id="mapModal" tabindex="-1" aria-labelledby="mapModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-md">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="mapModalLabel">Alterar Imagem do Mapa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Preview da imagem atual -->
+                <div class="mb-3">
+                    <label class="form-label">Imagem Atual</label>
+                    <div id="current-map-preview" class="border rounded p-3 text-center bg-light" style="min-height: 100px;">
+                        <span class="text-muted">Nenhuma imagem definida</span>
+                    </div>
+                </div>
+
+                <!-- Abas para definir nova imagem -->
+                <ul class="nav nav-tabs" id="mapTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="map-upload-tab" data-bs-toggle="tab" data-bs-target="#map-tab-upload" type="button" role="tab">
+                            Upload
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="map-url-tab" data-bs-toggle="tab" data-bs-target="#map-tab-url" type="button" role="tab">
+                            URL
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="map-gallery-tab" data-bs-toggle="tab" data-bs-target="#map-tab-gallery" type="button" role="tab">
+                            Minha Galeria
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content pt-3">
+                    <!-- Upload -->
+                    <div class="tab-pane fade show active" id="map-tab-upload" role="tabpanel" aria-labelledby="map-upload-tab">
+                        <div class="mb-2">
+                            <input type="file" class="form-control" id="map-file" accept="image/*">
+                        </div>
+                        <small class="text-muted">Tipos: jpeg, png, webp, gif. Tamanho máx.: 10 MB. Recomendado: imagens de alta resolução para mapas.</small>
+                    </div>
+
+                    <!-- URL -->
+                    <div class="tab-pane fade" id="map-tab-url" role="tabpanel" aria-labelledby="map-url-tab">
+                        <div class="mb-3">
+                            <label class="form-label" for="map-image-url">URL da Imagem do Mapa</label>
+                            <input type="url" class="form-control" id="map-image-url" placeholder="https://exemplo.com/mapa.png">
+                        </div>
+                        <button type="button" class="btn btn-outline-secondary" id="btn-test-map-url">Testar URL</button>
+                    </div>
+
+                    <!-- Galeria -->
+                    <div class="tab-pane fade" id="map-tab-gallery" role="tabpanel" aria-labelledby="map-gallery-tab">
+                        <div id="map-media-gallery" class="row g-2">
+                            <!-- thumbnails preenchidos via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preview da nova imagem -->
+                <div class="mt-3">
+                    <label class="form-label">Preview da Nova Imagem</label>
+                    <div id="new-map-preview" class="border rounded p-3 text-center bg-light" style="min-height: 100px;">
+                        <span class="text-muted">Selecione uma imagem acima</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <div class="me-auto text-danger small" id="map-error" style="display:none;"></div>
+                <button type="button" class="btn btn-outline-danger" id="remove-map-btn">Remover Imagem</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="save-map-image-btn">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="gridSettingsModal" tabindex="-1" aria-labelledby="gridSettingsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="gridSettingsModalLabel">Configurações do Grid</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" role="switch" id="grid-visible-switch">
+                    <label class="form-check-label" for="grid-visible-switch">Exibir Grid no Mapa</label>
+                </div>
+
+                <div class="mb-3">
+                    <label for="grid-size-input" class="form-label">Tamanho da Célula (pixels)</label>
+                    <input type="number" class="form-control" id="grid-size-input" min="10" max="200" step="1">
+                    <div class="form-text">Define o tamanho base de cada quadrado do grid. Padrão: 50.</div>
+                </div>
+
+                <div class="row">
+                    <div class="col-8">
+                        <div class="mb-3">
+                            <label for="grid-unit-value-input" class="form-label">Valor por Célula</label>
+                            <input type="number" class="form-control" id="grid-unit-value-input" min="0" step="0.5">
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="mb-3">
+                            <label for="grid-unit-input" class="form-label">Unidade</label>
+                            <input type="text" class="form-control" id="grid-unit-input" placeholder="m, ft">
+                        </div>
+                    </div>
+                    <div class="form-text mt-0 ms-2">Ex: 1.5 metros ou 5 pés (ft). Útil para cálculo de distância.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="save-grid-settings-btn">Salvar Alterações</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Event listeners para o modal do mapa
+    let selectedMapImage = null;
+
+    // Função para mostrar preview da nova imagem
+    function showMapPreview(url) {
+        
+        console.log("URL recebida para o preview:", url);
+        const preview = document.getElementById('new-map-preview');
+        if (url) {
+            //preview.innerHTML = `<img src="${url}" class="img-fluid" style="max-height: 80px;" alt="Preview da nova imagem">`;
+        } else {
+            //preview.innerHTML = '<span class="text-muted">Selecione uma imagem acima</span>';
+        }
+    }
+
+    // Função para mostrar erro do mapa
+    function showMapError(msg) {
+        const el = document.getElementById('map-error');
+        if (!el) return;
+        el.textContent = msg;
+        el.style.display = 'block';
+        setTimeout(() => (el.style.display = 'none'), 4000);
+    }
+
+    // Upload de arquivo para mapa
+    document.addEventListener('change', function(e) {
+        
+        if (e.target.id === 'map-file') {
+            const file = e.target.files?.[0];
+            if (!file) return;
+
+            if (file.size > 10 * 1024 * 1024) { // 10 MB
+                showMapError('Arquivo acima de 10 MB.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('mediaType', 'image');
+            formData.append('sessionId', sessionId);
+
+            fetch('/api/Media/upload', { method: 'POST', body: formData })
+                .then(resp => {
+                    if (!resp.ok) throw new Error('Falha no upload');
+                    return resp.json();
+                })
+                .then(data => {
+                    selectedMapImage = data.url;
+                    showMapPreview(selectedMapImage);
+                })
+                .catch(e => showMapError(e.message));
+        }
+    });
+
+    // Testar URL do mapa
+    document.addEventListener('click', function(e) {
+        if (e.target.id === 'btn-test-map-url') {
+            const url = document.getElementById('map-image-url')?.value.trim();
+            if (!url) return showMapError('Informe a URL.');
+            selectedMapImage = url;
+            showMapPreview(url);
+        }
+    });
+
+    // Carregar galeria do mapa
+    document.addEventListener('shown.bs.tab', function(e) {
+        if (e.target.id === 'map-gallery-tab') {
+            const gallery = document.getElementById('map-media-gallery');
+            if (!gallery) return;
+            
+            fetch(`/api/Media/session/${sessionId}?mediaType=image`)
+                .then(resp => resp.json())
+                .then(items => {
+                    gallery.innerHTML = '';
+                    items.forEach(m => {
+                        const col = document.createElement('div');
+                        col.className = 'col-3';
+                        col.innerHTML = `
+                            <button type="button" class="btn p-0 w-100 border-0 select-map-media" data-url="${m.url}">
+                                <div class="rounded" style="width:64px;height:64px;background:url('${m.url}') center/cover;"></div>
+                            </button>`;
+                        gallery.appendChild(col);
+                    });
+                })
+                .catch(e => console.error('Erro ao carregar galeria:', e));
+        }
+    });
+
+    // Selecionar mídia da galeria
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.select-map-media')) {
+            const btn = e.target.closest('.select-map-media');
+            selectedMapImage = btn.dataset.url;
+            showMapPreview(selectedMapImage);
+        }
+    });
+
+    // Salvar imagem do mapa
+    document.addEventListener('click', function(e) {
+        if (e.target.id === 'save-map-image-btn') {
+            if (!selectedMapImage) {
+                showMapError('Selecione uma imagem primeiro.');
+                return;
+            }
+
+            if (battlemapConnection) {
+                const battleMapId = battleMapData.id || battleMapData.Id;
+                battlemapConnection.invoke('ChangeMapImage', sessionId, battleMapId, selectedMapImage)
+                    .then(() => {
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('mapModal'));
+                        modal.hide();
+                        selectedMapImage = null;
+                    })
+                    .catch(err => {
+                        console.error('Error changing map image:', err);
+                        showMapError('Erro ao alterar imagem do mapa.');
+                    });
+            }
+        }
+    });
+
+    // Remover imagem do mapa
+    document.addEventListener('click', function(e) {
+        if (e.target.id === 'remove-map-btn') {
+            if (battlemapConnection) {
+                const battleMapId = battleMapData.id || battleMapData.Id;
+                battlemapConnection.invoke('ChangeMapImage', sessionId, battleMapId, '')
+                    .then(() => {
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('mapModal'));
+                        modal.hide();
+                        selectedMapImage = null;
+                    })
+                    .catch(err => {
+                        console.error('Error removing map image:', err);
+                        showMapError('Erro ao remover imagem do mapa.');
+                    });
+            }
+        }
+    });
+
+    // Limpar seleção quando modal fechar
+    document.addEventListener('hidden.bs.modal', function(e) {
+        if (e.target.id === 'mapModal') {
+            selectedMapImage = null;
+            showMapPreview(null);
+        }
+    });
+    // --- LÓGICA PARA O MODAL DE CONFIGURAÇÕES DO GRID ---
+
+    // 1. Abrir o modal e preencher com os dados atuais
+    document.getElementById('grid-settings-btn')?.addEventListener('click', function() {
+        // Pega os dados atuais do mapa
+        const gridSize = battleMapData?.gridSize || 50;
+        const gridUnitValue = battleMapData?.gridUnitValue || 1.5;
+        const gridUnit = battleMapData?.gridUnit || 'm';
+
+        // Popula os campos do modal com os valores atuais
+        document.getElementById('grid-visible-switch').checked = gridVisible;
+        document.getElementById('grid-size-input').value = gridSize;
+        document.getElementById('grid-unit-value-input').value = gridUnitValue;
+        document.getElementById('grid-unit-input').value = gridUnit;
+    
+        // Mostra o modal
+        const modal = new bootstrap.Modal(document.getElementById('gridSettingsModal'));
+        modal.show();
+    });
+
+    // 2. Salvar as alterações e enviar para o servidor via SignalR
+    document.getElementById('save-grid-settings-btn')?.addEventListener('click', function() {
+        // Coleta os novos valores do formulário
+        const newGridVisible = document.getElementById('grid-visible-switch').checked;
+        const newGridSize = parseInt(document.getElementById('grid-size-input').value, 10);
+        const newGridUnitValue = parseFloat(document.getElementById('grid-unit-value-input').value);
+        const newGridUnit = document.getElementById('grid-unit-input').value;
+
+        // Atualiza a variável de visibilidade local imediatamente
+        gridVisible = newGridVisible; 
+
+        const battleMapId = battleMapData.id || battleMapData.Id;
+    
+        // Cria o objeto com os dados para enviar
+        const gridSettings = {
+            GridSize: newGridSize,
+            GridUnitValue: newGridUnitValue,
+            GridUnit: newGridUnit
+            // A visibilidade é controlada no cliente, mas se quisesse salvar, adicionaria aqui
+        };
+
+        // Envia os novos dados para o servidor via SignalR
+        if (battlemapConnection) {
+            battlemapConnection.invoke('UpdateGridSettings', sessionId, battleMapId, gridSettings)
+                .catch(err => console.error('Erro ao atualizar configurações do grid:', err));
+        }
+
+        // Esconde o modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('gridSettingsModal'));
+        modal.hide();
+    });
+
+    // 3. Receber a atualização do grid de outros usuários
+    // (Este handler deve ser adicionado dentro da função initializeBattlemapHub)
+    /*
+       battlemapConnection.on("GridSettingsUpdated", function (settings) {
+           console.log('Configurações do Grid atualizadas via SignalR:', settings);
+
+           // Atualiza o objeto de dados local
+           battleMapData.gridSize = settings.gridSize;
+           battleMapData.gridUnitValue = settings.gridUnitValue;
+           battleMapData.gridUnit = settings.gridUnit;
+       
+           // Força a recriação do tile do grid com o novo tamanho e redesenha o stage
+           tileCache = null; // Invalida o cache para forçar a recriação
+           updateGridPattern();
+       });
+    */
+</script>

@@ -1,0 +1,181 @@
+@page "/Sessions/Edit/{id:int}"
+@model RPGSessionManager.Pages.Sessions.EditModel
+@{
+    ViewData["Title"] = "Editar Sessão";
+}
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <h2>@ViewData["Title"]</h2>
+            
+            <form method="post">
+                <input type="hidden" asp-for="Session.Id" />
+                
+                <div class="mb-3">
+                    <label asp-for="Session.Name" class="form-label">Nome da Sessão</label>
+                    <input asp-for="Session.Name" class="form-control" />
+                    <span asp-validation-for="Session.Name" class="text-danger"></span>
+                </div>
+                
+                <div class="mb-3">
+                    <label asp-for="Session.SystemId" class="form-label">Sistema de RPG</label>
+                    <select asp-for="Session.SystemId" class="form-select" asp-items="Model.SystemOptions">
+                        <option value="">Selecione um sistema (opcional)</option>
+                    </select>
+                    <span asp-validation-for="Session.SystemId" class="text-danger"></span>
+                </div>
+                
+                <div class="mb-3">
+                    <label asp-for="Session.ScenarioId" class="form-label">Cenário</label>
+                    <select asp-for="Session.ScenarioId" class="form-select" asp-items="Model.ScenarioOptions">
+                        <option value="">Selecione um cenário (opcional)</option>
+                    </select>
+                    <span asp-validation-for="Session.ScenarioId" class="text-danger"></span>
+                </div>
+                
+                <div class="mb-3">
+                    <label asp-for="Session.GameTabletopId" class="form-label">Mesa de Jogo</label>
+                    <select asp-for="Session.GameTabletopId" class="form-select" asp-items="Model.TabletopOptions">
+                        <option value="">Selecione uma mesa (opcional)</option>
+                    </select>
+                    <span asp-validation-for="Session.GameTabletopId" class="text-danger"></span>
+                    <div class="form-text">Associar a uma mesa permite gerenciar participantes automaticamente.</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Participantes</label>
+                    <div id="participants-container">
+                        @if (Model.SelectedParticipants?.Any() == true)
+                        {
+                            @for (int i = 0; i < Model.SelectedParticipants.Count; i++)
+                            {
+                                <div class="participant-item mb-2">
+                                    <input type="hidden" name="SelectedParticipants[@i]" value="@Model.SelectedParticipants[i]" />
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" value="@Model.GetUserDisplayName(Model.SelectedParticipants[i])" readonly />
+                                        <button type="button" class="btn btn-outline-danger remove-participant">Remover</button>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                    
+                    <div class="mt-2">
+                        <select id="available-users" class="form-select">
+                            <option value="">Adicionar participante...</option>
+                            @foreach (var user in Model.AvailableUsers)
+                            {
+                                <option value="@user.Id">@user.DisplayName (@user.Email)</option>
+                            }
+                        </select>
+                        <button type="button" id="add-participant" class="btn btn-outline-primary mt-2">Adicionar</button>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+                    <a asp-page="./Details" asp-route-id="@Model.Session.Id" class="btn btn-secondary">Cancelar</a>
+                </div>
+            </form>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Informações da Sessão</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Criada em:</strong> @Model.Session.CreatedAt.ToString("dd/MM/yyyy HH:mm")</p>
+                    <p><strong>Última atualização:</strong> @Model.Session.UpdatedAt.ToString("dd/MM/yyyy HH:mm")</p>
+                    <p><strong>Narrador:</strong> @Model.NarratorName</p>
+                </div>
+            </div>
+            
+            @if (Model.Session.GameTabletopId > 0)
+            {
+                <div class="card mt-3">
+                    <div class="card-header">
+                        <h5>Mesa de Jogo</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Nome:</strong> @Model.TabletopName</p>
+                        <p><strong>Membros:</strong> @Model.TabletopMemberCount</p>
+                        <a asp-page="/Tabletops/Details" asp-route-id="@Model.Session.GameTabletopId" class="btn btn-sm btn-outline-info">Ver Mesa</a>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const addButton = document.getElementById('add-participant');
+    const userSelect = document.getElementById('available-users');
+    const container = document.getElementById('participants-container');
+    
+    addButton.addEventListener('click', function() {
+        const selectedUserId = userSelect.value;
+        const selectedUserText = userSelect.options[userSelect.selectedIndex].text;
+        
+        if (!selectedUserId) return;
+        
+        // Check if user is already added
+        const existingInputs = container.querySelectorAll('input[type="hidden"]');
+        for (let input of existingInputs) {
+            if (input.value === selectedUserId) {
+                alert('Este usuário já foi adicionado.');
+                return;
+            }
+        }
+        
+        // Create new participant item
+        const participantCount = container.children.length;
+        const participantDiv = document.createElement('div');
+        participantDiv.className = 'participant-item mb-2';
+        participantDiv.innerHTML = `
+            <input type="hidden" name="SelectedParticipants[${participantCount}]" value="${selectedUserId}" />
+            <div class="input-group">
+                <input type="text" class="form-control" value="${selectedUserText}" readonly />
+                <button type="button" class="btn btn-outline-danger remove-participant">Remover</button>
+            </div>
+        `;
+        
+        container.appendChild(participantDiv);
+        
+        // Reset select
+        userSelect.value = '';
+        
+        // Remove option from select
+        userSelect.options[userSelect.selectedIndex].remove();
+    });
+    
+    // Handle remove participant
+    container.addEventListener('click', function(e) {
+        if (e.target.classList.contains('remove-participant')) {
+            const participantDiv = e.target.closest('.participant-item');
+            const hiddenInput = participantDiv.querySelector('input[type="hidden"]');
+            const userId = hiddenInput.value;
+            const userName = participantDiv.querySelector('input[type="text"]').value;
+            
+            // Add option back to select
+            const option = document.createElement('option');
+            option.value = userId;
+            option.text = userName;
+            userSelect.appendChild(option);
+            
+            // Remove participant div
+            participantDiv.remove();
+            
+            // Reindex remaining participants
+            const remainingParticipants = container.querySelectorAll('.participant-item');
+            remainingParticipants.forEach((item, index) => {
+                const input = item.querySelector('input[type="hidden"]');
+                input.name = `SelectedParticipants[${index}]`;
+            });
+        }
+    });
+});
+</script>
+

@@ -1,0 +1,69 @@
+@page "{id:int}"
+@using RPGSessionManager.Models
+@model RPGSessionManager.Pages.Admin.Members.EditModel
+@{
+    ViewData["Title"] = "Gerenciar Membros da Mesa";
+}
+
+<h2 class="mb-3">Gerenciar Membros da Mesa @Model.GameTabletop?.Name</h2>
+
+@if (Model.GameTabletop == null)
+{
+    <div class="alert alert-danger">Mesa não encontrada.</div>
+}
+else
+{
+    <h4>Membros Ativos</h4>
+    @if (Model.ActiveMembers.Any())
+    {
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Usuário</th>
+                    <th>DisplayName</th>
+                    <th>Função</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var member in Model.ActiveMembers)
+                {
+                    <tr>
+                        <td>@(member.User?.Email ?? member.User?.UserName ?? "—")</td>
+                        <td>@(member.User?.DisplayName ?? member.User?.UserName ?? "—")</td>
+                        <td>@member.Role</td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                @* Editar associação (abre página para editar displayname/papel/ativo) *@
+                                <a asp-page="./EditMember"
+                                   asp-route-tabletopId="@Model.GameTabletop.Id"
+                                   asp-route-memberId="@member.Id"
+                                   class="btn btn-sm btn-outline-secondary">Editar</a>
+
+                                @* Não permitir remover o narrador *@
+                                @if (member.UserId != Model.GameTabletop.NarratorId)
+                                {
+                                    <form method="post" asp-page-handler="RemoveMember" class="d-inline ms-1">
+                                        <input type="hidden" name="MemberId" value="@member.Id" />
+                                        <input type="hidden" name="id" value="@Model.GameTabletop.Id" />
+                                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Remover este membro?');">Remover</button>
+                                    </form>
+                                }
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p>Nenhum membro ativo.</p>
+    }
+
+
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

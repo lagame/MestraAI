@@ -1,0 +1,74 @@
+@page
+@model RPGSessionManager.Pages.Sessions.CreateModel
+@{
+    ViewData["Title"] = "Nova Sessão";
+}
+
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Página Inicial</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Mesas/Index">Mesas</a></li>
+        @if (Model.GameTabletop != null)
+        {
+            <li class="breadcrumb-item"><a asp-page="/Mesas/Details" asp-route-id="@Model.GameTabletop.Id">@Model.GameTabletop.Name</a></li>
+        }
+        <li class="breadcrumb-item active" aria-current="page">Nova Sessão</li>
+    </ol>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0">Criar Nova Sessão</h4>
+                @if (Model.GameTabletop != null)
+                {
+                    <small>Mesa: @Model.GameTabletop.Name</small>
+                }
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                    
+                    <input type="hidden" asp-for="Input.GameTabletopId" />
+                    
+                    <div class="mb-3">
+                        <label asp-for="Input.Name" class="form-label"></label>
+                        <input asp-for="Input.Name" class="form-control" placeholder="Ex: Sessão 1 - A Taverna Misteriosa" />
+                        <span asp-validation-for="Input.Name" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Input.Description" class="form-label"></label>
+                        <textarea asp-for="Input.Description" class="form-control" rows="3" 
+                                  placeholder="Descreva o que acontecerá nesta sessão..."></textarea>
+                        <span asp-validation-for="Input.Description" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Input.ScheduledDate" class="form-label">Data e Hora Agendada (opcional)</label>
+                        <input asp-for="Input.ScheduledDate" class="form-control" type="datetime-local" />
+                        <span asp-validation-for="Input.ScheduledDate" class="text-danger"></span>
+                        <div class="form-text">Deixe em branco se não quiser agendar uma data específica.</div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a asp-page="/Mesas/Details" asp-route-id="@Model.Input.GameTabletopId" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Voltar para Mesa
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save"></i> Criar Sessão
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+}
+

@@ -1,0 +1,34 @@
+@page
+@using RPGSessionManager.Models
+@model RPGSessionManager.Pages.Admin.Members.IndexModel
+@{
+    ViewData["Title"] = "Gerenciar Membros";
+}
+
+<h2 class="mb-3">Gerenciar Membros</h2>
+<p>Selecione uma mesa para editar ou adicionar membros.</p>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Nome da Mesa</th>
+            <th>Narrador</th>
+            <th>Jogadores Ativos</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    @foreach (var tabletop in Model.GameTabletops)
+    {
+        <tr>
+            <td>@tabletop.Name</td>
+            <td>@(tabletop.Narrator.DisplayName ?? tabletop.Narrator.UserName)</td>
+            <td>@tabletop.Members.Count(m => m.IsActive)</td>
+            <td>
+                <a asp-page="./Edit" asp-route-id="@tabletop.Id" class="btn btn-sm btn-outline-secondary">Editar</a>
+                <a asp-page="./Create" asp-route-id="@tabletop.Id" class="btn btn-sm btn-outline-primary ms-1">Adicionar Membro</a>
+            </td>
+        </tr>
+    }
+    </tbody>
+</table>

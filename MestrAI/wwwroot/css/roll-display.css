@@ -1,0 +1,64 @@
+/* CSS mínimo para exibir rolagens de forma clara e acessível */
+.roll-msg {
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  margin: 8px 0;
+  padding: 8px;
+  background: #fff;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  line-height: 1.35;
+}
+
+.roll-header {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  border-bottom: 1px dashed #ddd;
+  padding-bottom: 4px;
+  margin-bottom: 6px;
+}
+
+.roll-user { font-weight: 600; }
+.roll-verb { color: #555; }
+.roll-expr { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+.roll-total {
+  margin-left: auto;
+  font-weight: 700;
+  background: #f4f8ff;
+  border: 1px solid #cfe3ff;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.roll-toggle {
+  border: 1px solid #ccc;
+  background: #fafafa;
+  border-radius: 4px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+
+.roll-summary {
+  margin: 4px 0 6px;
+  color: #333;
+}
+
+.roll-details .roll-line {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  white-space: pre-wrap;
+}
+
+.roll-error {
+  border-color: #f5c2c7;
+  background: #fff5f5;
+}
+
+.roll-error .roll-total {
+  background: #ffe7ea;
+  border-color: #f5c2c7;
+}
+
+.roll-error-msg {
+  color: #b00020;
+}

@@ -1,0 +1,241 @@
+@page
+@model RPGSessionManager.Pages.Admin.AISettingsModel
+@{
+    ViewData["Title"] = "Configurações de IA";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3 mb-0">@ViewData["Title"]</h1>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-0">
+                        <li class="breadcrumb-item"><a asp-page="/Index">Início</a></li>
+                        <li class="breadcrumb-item"><a asp-page="/Admin/Members/Index">Admin</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Configurações de IA</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(Model.StatusMessage))
+    {
+        <div class="alert @(Model.StatusMessage.Contains("sucesso") ? "alert-success" : "alert-danger") alert-dismissible fade show" role="alert">
+            @Model.StatusMessage
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Configurações do Provedor de IA</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        <div class="mb-4">
+                            <label class="form-label">Provedor de IA</label>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" asp-for="Settings.Provider" value="Gemini" id="providerGemini">
+                                        <label class="form-check-label" for="providerGemini">
+                                            <strong>Google Gemini (Vertex AI)</strong>
+                                            <small class="d-block text-muted">Recomendado para produção</small>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" asp-for="Settings.Provider" value="Local" id="providerLocal">
+                                        <label class="form-check-label" for="providerLocal">
+                                            <strong>LLM Local</strong>
+                                            <small class="d-block text-muted">Para desenvolvimento/testes</small>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <span asp-validation-for="Settings.Provider" class="text-danger"></span>
+                        </div>
+
+                        <!-- Configurações do Gemini -->
+                        <div id="geminiSettings" class="provider-settings">
+                            <h6 class="text-primary mb-3">Configurações do Google Gemini</h6>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label asp-for="Settings.GeminiProject" class="form-label">ID do Projeto Google Cloud</label>
+                                        <input asp-for="Settings.GeminiProject" class="form-control" placeholder="meu-projeto-gcp">
+                                        <div class="form-text">ID do projeto no Google Cloud Platform</div>
+                                        <span asp-validation-for="Settings.GeminiProject" class="text-danger"></span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label asp-for="Settings.GeminiLocation" class="form-label">Localização</label>
+                                        <select asp-for="Settings.GeminiLocation" class="form-select">                                            
+                                            <option value="us-central1">us-central1</option>
+                                            <option value="us-east1">us-east1</option>
+                                            <option value="us-west1">us-west1</option>
+                                            <option value="europe-west1">europe-west1</option>
+                                            <option value="asia-northeast1">asia-northeast1</option>
+                                        </select>
+                                        <span asp-validation-for="Settings.GeminiLocation" class="text-danger"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label asp-for="Settings.GeminiModel" class="form-label">Modelo</label>
+                                <select asp-for="Settings.GeminiModel" class="form-select">
+                                    <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite (Recomendado)</option>
+                                    <option value="gemini-1.5-pro-002">gemini-1.5-pro-002</option>
+                                    <option value="gemini-1.0-pro">gemini-1.0-pro</option>
+                                </select>
+                                <span asp-validation-for="Settings.GeminiModel" class="text-danger"></span>
+                            </div>
+
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>Credenciais:</strong> O arquivo <code>secrets/google-credentials.json</code> deve estar presente no diretório do projeto.
+                            </div>
+                        </div>
+
+                        <!-- Configurações do LLM Local -->
+                        <div id="localSettings" class="provider-settings">
+                            <h6 class="text-primary mb-3">Configurações do LLM Local</h6>
+                            
+                            <div class="mb-3">
+                                <label asp-for="Settings.LocalEndpoint" class="form-label">Endpoint</label>
+                                <input asp-for="Settings.LocalEndpoint" class="form-control" placeholder="http://localhost:8080">
+                                <div class="form-text">URL completa do serviço de LLM local</div>
+                                <span asp-validation-for="Settings.LocalEndpoint" class="text-danger"></span>
+                            </div>
+
+                            <div class="mb-3">
+                                <label asp-for="Settings.LocalApiKey" class="form-label">Chave de API (Opcional)</label>
+                                <input asp-for="Settings.LocalApiKey" type="password" class="form-control" placeholder="Deixe em branco se não for necessária">
+                                <div class="form-text">Chave de autenticação, se necessária</div>
+                                <span asp-validation-for="Settings.LocalApiKey" class="text-danger"></span>
+                            </div>
+
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>Atenção:</strong> Certifique-se de que o serviço de LLM local está rodando e acessível.
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" asp-page-handler="Save" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Salvar Configurações
+                            </button>
+                            <button type="submit" asp-page-handler="TestConnection" class="btn btn-outline-info" disabled="@Model.IsTestingConnection">
+                                @if (Model.IsTestingConnection)
+                                {
+                                    <i class="fas fa-spinner fa-spin me-2"></i>@("Testing...")
+                                }
+                                else
+                                {
+                                    <i class="fas fa-plug me-2"></i>@("Test Connection")
+                                }
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Informações</h5>
+                </div>
+                <div class="card-body">
+                    <h6>Google Gemini</h6>
+                    <ul class="list-unstyled small">
+                        <li><i class="fas fa-check text-success me-2"></i>Alta qualidade de resposta</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Suporte multilíngue</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Escalabilidade automática</li>
+                        <li><i class="fas fa-exclamation-triangle text-warning me-2"></i>Requer credenciais GCP</li>
+                    </ul>
+
+                    <h6 class="mt-4">LLM Local</h6>
+                    <ul class="list-unstyled small">
+                        <li><i class="fas fa-check text-success me-2"></i>Controle total dos dados</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Sem custos por uso</li>
+                        <li><i class="fas fa-check text-success me-2"></i>Ideal para desenvolvimento</li>
+                        <li><i class="fas fa-exclamation-triangle text-warning me-2"></i>Requer infraestrutura própria</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Status do Sistema</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Provedor Atual:</span>
+                        <span class="badge bg-primary">@Model.Settings.Provider</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const geminiRadio = document.getElementById('providerGemini');
+            const localRadio = document.getElementById('providerLocal');
+            const geminiSettings = document.getElementById('geminiSettings');
+            const localSettings = document.getElementById('localSettings');
+            
+            function toggleSettings() {
+                if (geminiRadio.checked) {
+                    geminiSettings.style.display = 'block';
+                    localSettings.style.display = 'none';
+                } else if (localRadio.checked) {
+                    geminiSettings.style.display = 'none';
+                    localSettings.style.display = 'block';
+                }
+            }
+            
+            geminiRadio.addEventListener('change', toggleSettings);
+            localRadio.addEventListener('change', toggleSettings);
+            
+            // Configuração inicial
+            toggleSettings();
+        });
+    </script>
+    
+    <style>
+        .provider-settings {
+            border-left: 3px solid #dee2e6;
+            padding-left: 1rem;
+            margin-left: 1rem;
+        }
+        
+        .form-check-label strong {
+            display: block;
+        }
+        
+        .card {
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            border: 1px solid rgba(0, 0, 0, 0.125);
+        }
+        
+        .alert {
+            border: none;
+            border-radius: 0.5rem;
+        }
+    </style>
+}
+

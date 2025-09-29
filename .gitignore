@@ -1,0 +1,127 @@
+###############################################################################
+# MestrAI (.NET 8 / ASP.NET Core / NUnit + Playwright / Visual Studio / VSCode)
+# Gerado sob medida a partir do código analisado.
+###############################################################################
+
+############################
+# Build / IDE / Artefatos #
+############################
+.vs/
+[Bb]in/
+[Oo]bj/
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+*.opendb
+*.VC.db
+*.psess
+*.vsp
+*.vspx
+
+# Rider / ReSharper (caso use futuramente)
+.idea/
+_ReSharper*/
+*.DotSettings.user
+
+# VS Code (mantém configs úteis)
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+############################
+# Testes / Coverage / E2E #
+############################
+TestResults/
+**/test-results/
+**/playwright-report/
+**/trace.zip
+*.coverage
+*.coveragexml
+coverage*/
+coverage.*.xml
+lcov.info
+nunit-*.xml
+
+# Playwright browsers e cache
+**/ms-playwright/
+**/playwright/.cache/
+
+############################
+# Configs sensíveis       #
+############################
+# Pasta local encontrada no projeto
+secrets/
+
+# Env files (não há hoje, mas previne futuros vazamentos)
+.env
+.env.*
+
+# AppSettings
+# - appsettings.json e Development.json NÃO têm segredos no seu repo atual,
+#   então permanecem versionados.
+# - Ignorar variações locais/produção/staging e arquivos privados.
+appsettings.*.local.json
+appsettings.Production.json
+appsettings.Staging.json
+*.Private.json
+*.Secrets.json
+*.Secret.json
+
+# Certificados / chaves
+*.pfx
+*.p12
+*.key
+*.cer
+*.crt
+*.pem
+
+############################
+# Bancos / logs           #
+############################
+# SQLite (ex.: MestrAI/app.db e wal/shm)
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.mdf
+*.ldf
+*.bak
+*.db.backup
+*.db-journal
+
+# Logs
+*.log
+Logs/
+
+############################
+# Frontend (LibMan)       #
+############################
+# O projeto usa libman.json e a pasta wwwroot/lib existe.
+# Opção adotada: NÃO versionar vendors; restaurar via LibMan no build/CI.
+MestrAI/wwwroot/lib/
+# Se quiser versionar vendors depois, remova a linha acima.
+
+############################
+# Uploads / mídia gerada  #
+############################
+# Evita subir arquivos gerados em runtime.
+MestrAI/wwwroot/uploads/
+!MestrAI/wwwroot/uploads/.gitkeep
+
+# A pasta Media está no repo; se for storage de runtime, mantenha ignorada:
+MestrAI/Media/**
+!MestrAI/Media/.gitkeep
+!MestrAI/Media/README*
+
+############################
+# SO / Editor trash       #
+############################
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.swp
+*.swo

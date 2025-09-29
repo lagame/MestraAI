@@ -1,0 +1,73 @@
+﻿@* Reúne todos os itens do menu principal para reutilização no desktop e mobile *@
+@* Observação: mantenha SOMENTE links de navegação aqui. A parte condicional de login fica no _LoginPartial *@
+
+<ul class="navbar-nav">
+    <li class="nav-item">
+        <a class="nav-link d-flex align-items-center" asp-area="" asp-page="/Index">
+            <i class="bi bi-house me-1"></i><span>Início</span>
+        </a>
+    </li>
+
+    <li class="nav-item">
+        <a class="nav-link d-flex align-items-center" asp-area="" asp-page="/Features">
+            <i class="bi bi-gear me-1"></i><span>Recursos</span>
+        </a>
+    </li>
+
+    @if (User.Identity?.IsAuthenticated ?? false)
+    {
+        <li class="nav-item">
+            <a class="nav-link d-flex align-items-center" asp-area="" asp-page="/Mesas/Index">
+                <i class="bi bi-table me-1"></i><span>Mesas</span>
+            </a>
+        </li>
+
+        @if (User.IsInRole("Narrator") || User.IsInRole("Admin"))
+        {
+            <li class="nav-item">
+                <a class="nav-link d-flex align-items-center" asp-area="" asp-page="/AiTest">
+                    <i class="bi bi-robot me-1"></i><span>Teste IA</span>
+                </a>
+            </li>
+        }
+
+        @if (User.IsInRole("Admin"))
+        {
+            <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-gear-fill me-1"></i><span>Admin</span>
+                </a>
+                <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+                    <li>
+                        <a class="dropdown-item d-flex align-items-center" asp-area="" asp-page="/Admin/Members/Index">
+                            <i class="bi bi-people me-2"></i><span>Membros</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item d-flex align-items-center" asp-area="" asp-page="/Admin/AISettings">
+                            <i class="bi bi-robot me-2"></i><span>Configurações de IA</span>
+                        </a>
+                    </li>
+                </ul>
+            </li>
+        }
+    }
+
+    <li class="nav-item">
+        <a class="nav-link d-flex align-items-center" asp-area="" asp-page="/Community">
+            <i class="bi bi-people me-1"></i><span>Comunidade</span>
+        </a>
+    </li>
+
+    <li class="nav-item">
+        <a class="nav-link d-flex align-items-center" asp-area="" asp-page="/About">
+            <i class="bi bi-info-circle me-1"></i><span>Sobre</span>
+        </a>
+    </li>
+
+    <li class="nav-item">
+        <a class="nav-link d-flex align-items-center" asp-area="" asp-page="/Privacy">
+            <i class="bi bi-shield-check me-1"></i><span>Privacidade</span>
+        </a>
+    </li>
+</ul>

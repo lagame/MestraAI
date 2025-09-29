@@ -1,0 +1,52 @@
+﻿@page
+@model RPGSessionManager.Pages.Admin.Members.EditMemberModel
+@{
+    ViewData["Title"] = "Editar Membro";
+}
+
+<h2 class="mb-3">Editar Membro</h2>
+
+@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+
+<form method="post" class="row g-3">
+    <input type="hidden" asp-for="TabletopId" />
+    <input type="hidden" asp-for="MemberRecordId" />
+
+    <div class="col-md-6">
+        <label class="form-label">Email / Username</label>
+        <input class="form-control" value="@Model.UserEmail" readonly />
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="DisplayName" class="form-label">DisplayName</label>
+        <input asp-for="DisplayName" class="form-control" />
+        <span asp-validation-for="DisplayName" class="text-danger"></span>
+    </div>
+
+    <div class="col-md-4">
+        <label asp-for="Role" class="form-label">Papel</label>
+        <select asp-for="Role" class="form-select">
+            @foreach (var r in Model.RoleOptions)
+            {
+                <option value="@r.Value" selected="@(r.Value == ((int)Model.Role).ToString())">@r.Text</option>
+            }
+        </select>
+    </div>
+
+    <div class="col-md-2 form-check mt-3">
+        <input asp-for="IsActive" class="form-check-input" />
+        <label asp-for="IsActive" class="form-check-label">Ativo</label>
+    </div>
+
+    <div class="col-12">
+        <button type="submit" class="btn btn-primary">Salvar</button>
+        <a asp-page="./Edit" asp-route-id="@Model.TabletopId" class="btn btn-secondary ms-2">Voltar</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

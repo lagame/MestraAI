@@ -1,0 +1,197 @@
+@page
+@using RPGSessionManager.Models
+@model RPGSessionManager.Pages.Sessions.DetailsModel
+@{
+    ViewData["Title"] = $"Sessão: {Model.Session?.Name}";
+}
+
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Página Inicial</a></li>
+        <li class="breadcrumb-item"><a asp-page="/Mesas/Index">Mesas</a></li>
+        @if (Model.Session?.GameTabletop != null)
+        {
+            <li class="breadcrumb-item"><a asp-page="/Mesas/Details" asp-route-id="@Model.Session.GameTabletopId">@Model.Session.GameTabletop.Name</a></li>
+        }
+        <li class="breadcrumb-item active" aria-current="page">@Model.Session?.Name</li>
+    </ol>
+</nav>
+
+@* Breadcrumb permanece acima *@
+
+<div class="row">
+    <!-- Coluna principal -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3>@Model.Session?.Name</h3>
+                @if (User.IsInRole("Narrator") || User.IsInRole("Admin"))
+                {
+                    <div class="btn-group">
+                        <a asp-page="./Edit" asp-route-id="@Model.Session?.Id" class="btn btn-outline-primary btn-sm">Editar</a>
+                        <a asp-page="./BattlemapMobile" asp-route-id="@Model.Session?.Id" class="btn btn-success btn-sm">
+                            <i class="bi bi-grid-3x3"></i> Abrir Battlemap
+                        </a>
+                        <a asp-page="./Chat" asp-route-id="@Model.Session?.Id" class="btn btn-primary btn-sm">Entrar no Chat</a>
+                    </div>
+                }
+                else
+                {
+                    <div class="btn-group">
+                        <a asp-page="./BattlemapMobile" asp-route-id="@Model.Session?.Id" class="btn btn-success btn-sm">
+                            <i class="bi bi-grid-3x3"></i> Abrir Battlemap
+                        </a>
+                        <a asp-page="./Chat" asp-route-id="@Model.Session?.Id" class="btn btn-primary btn-sm">Entrar no Chat</a>
+                    </div>
+                }
+            </div>
+
+            <div class="card-body">
+                <h5>Informações da Sessão</h5>
+                <p><strong>Sistema:</strong> @(Model.Session?.System?.Name ?? "Não definido")</p>
+                <p><strong>Cenário:</strong> @(Model.Session?.Scenario?.Name ?? "Não definido")</p>
+                <p><strong>Narrador:</strong> @Model.Session?.Narrator?.DisplayName</p>
+                <p><strong>Mesa:</strong> @Model.Session?.GameTabletop?.Name</p>
+                <p>
+                    <strong>Status:</strong>
+                    @{
+                        var st = Model.Session?.Status;
+                    }
+                    @if (st.HasValue)
+                    {
+                        switch (st.Value)
+                        {
+                            case SessionStatus.Planned:
+                                <span class="badge bg-secondary">Planejada</span>
+                                ; break;
+                            case SessionStatus.Active:
+
+                                <span class="badge bg-success">Ativa</span>
+                                ; break;
+                            case SessionStatus.Completed:
+
+                                <span class="badge bg-primary">Concluída</span>
+                                ; break;
+                            case SessionStatus.Cancelled:
+
+                                <span class="badge bg-danger">Cancelada</span>
+                                ; break;
+                        }
+                    }
+                    else
+                    {
+                        <span class="text-muted">Não definido</span>
+                    }
+                </p>
+
+
+                @if (Model.Session?.ScheduledDate.HasValue == true)
+                {
+                    <p><strong>Data Agendada:</strong> @Model.Session.ScheduledDate.Value.ToString("dd/MM/yyyy HH:mm")</p>
+                }
+
+                @if (!string.IsNullOrEmpty(Model.Session?.Description))
+                {
+                    <p><strong>Descrição:</strong></p>
+                    <p class="text-muted">@Model.Session.Description</p>
+                }
+            </div>
+        </div>
+
+        <!-- Metadados -->
+        <div class="mt-3">
+            <p><strong>Criada em:</strong> @Model.Session?.CreatedAt.ToString("dd/MM/yyyy HH:mm")</p>
+            <p><strong>Última atualização:</strong> @Model.Session?.UpdatedAt.ToString("dd/MM/yyyy HH:mm")</p>
+        </div>
+
+        <!-- Participantes (colocado como card dentro da coluna principal) -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>Participantes (@Model.ParticipantNames.Count)</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    @foreach (var participant in Model.ParticipantNames)
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>@participant</span>
+                            @if (participant == Model.Session?.Narrator?.DisplayName)
+                            {
+                                <span class="badge bg-primary rounded-pill">Narrador</span>
+                            }
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+
+        @* Personagens da sessão *@
+        @if (Model.Characters.Any())
+        {
+            <div class="card mt-3">
+                <div class="card-header"><h5>Personagens da Sessão</h5></div>
+                <div class="card-body">
+                    <div class="row">
+                        @foreach (var character in Model.Characters)
+                        {
+                            <div class="col-md-6 mb-3">
+                                <div class="card @(character.AiEnabled ? "border-success" : "")">
+                                    <div class="card-body">
+                                        <h6 class="card-title d-flex justify-content-between">
+                                            @character.Name
+                                            @if (character.AiEnabled)
+                                            {
+                                                <span class="badge bg-success">IA</span>
+                                            }
+                                        </h6>
+                                        <p class="card-text">
+                                            <small class="text-muted">
+                                                Jogador: @character.OwnerName<br />
+                                                Atualizado: @character.UpdatedAt.ToString("dd/MM/yyyy")
+                                            </small>
+                                        </p>
+                                        @if (User.IsInRole("Narrator") || User.IsInRole("Admin") || character.OwnerName == User.Identity?.Name)
+                                        {
+                                            <a asp-page="/Characters/Edit" asp-route-id="@character.Id" class="btn btn-outline-primary btn-sm">Ver/Editar</a>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Coluna lateral -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Ações Rápidas</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a asp-page="./Chat" asp-route-id="@Model.Session?.Id" class="btn btn-primary">Entrar no Chat</a>
+
+                    @if (User.IsInRole("Narrator") || User.IsInRole("Admin"))
+                    {
+                        <a asp-page="/Characters/Create" asp-route-sessionId="@Model.Session?.Id" class="btn btn-outline-success">Adicionar Personagem</a>
+                        <a asp-page="./Edit" asp-route-id="@Model.Session?.Id" class="btn btn-outline-secondary">Editar Sessão</a>
+                    }
+
+                    <a asp-page="./Index" class="btn btn-outline-primary">Voltar às Sessões</a>
+                </div>
+            </div>
+        </div>
+
+        @if (Model.Session?.Scenario?.Name != null)
+        {
+            <div class="card mt-3">
+                <div class="card-header"><h6>Cenário: @Model.Session.Scenario.Name</h6></div>
+                <div class="card-body"><p class="card-text">@Model.ScenarioDescription</p></div>
+            </div>
+        }
+    </div>
+</div> @* fim do row principal *@

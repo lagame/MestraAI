@@ -1,0 +1,86 @@
+@page
+@model RPGSessionManager.Pages.AiTestModel
+@{
+    ViewData["Title"] = "Teste de IA";
+}
+
+<div class="row">
+    <div class="col-md-8">
+        <h2>Teste de Integração com IA</h2>
+        <p class="text-muted">Esta página permite testar a integração com o Gemini AI para personagens com IA habilitada.</p>
+
+        <form method="post">
+            <div class="mb-3">
+                <label asp-for="SessionId" class="form-label">Sessão</label>
+                <select asp-for="SessionId" class="form-select" asp-items="Model.SessionOptions">
+                    <option value="">Selecione uma sessão</option>
+                </select>
+                <span asp-validation-for="SessionId" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="CharacterId" class="form-label">Personagem (somente com IA habilitada)</label>
+                <select asp-for="CharacterId" class="form-select" asp-items="Model.CharacterOptions">
+                    <option value="">Selecione um personagem</option>
+                </select>
+                <span asp-validation-for="CharacterId" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="PlayerCommand" class="form-label">Comando do Jogador</label>
+                <textarea asp-for="PlayerCommand" class="form-control" rows="3" placeholder="Ex: Olá, como você está?"></textarea>
+                <span asp-validation-for="PlayerCommand" class="text-danger"></span>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Gerar Resposta da IA</button>
+        </form>
+
+        @if (!string.IsNullOrEmpty(Model.AiResponse))
+        {
+            <div class="mt-4">
+                <h4>Resposta da IA:</h4>
+                <div class="alert alert-success">
+                    <pre>@Model.AiResponse</pre>
+                </div>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <div class="mt-4">
+                <div class="alert alert-danger">
+                    <strong>Erro:</strong> @Model.ErrorMessage
+                </div>
+            </div>
+        }
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Como usar</h5>
+            </div>
+            <div class="card-body">
+                <ol>
+                    <li>Selecione uma sessão</li>
+                    <li>Escolha um personagem com IA habilitada</li>
+                    <li>Digite um comando ou pergunta</li>
+                    <li>Clique em "Gerar Resposta da IA"</li>
+                </ol>
+                <hr>
+                <h6>Exemplo de comando cURL:</h6>
+                <pre><code>curl -X POST "https://localhost:5001/api/ai/character/act" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": 1,
+    "characterId": 2,
+    "playerCommand": "Olá, como você está?"
+  }'</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+

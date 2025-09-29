@@ -1,0 +1,102 @@
+@page
+@model RPGSessionManager.Pages.Mesas.CreateModel
+@{
+    ViewData["Title"] = "Nova Mesa";
+}
+
+<!-- Breadcrumb -->
+<nav aria-label="breadcrumb" class="mb-4">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a asp-page="/Index">Página Inicial</a></li>
+        <li class="breadcrumb-item"><a asp-page="./Index">Mesas</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Nova Mesa</li>
+    </ol>
+</nav>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">Criar Nova Mesa de RPG</h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                    
+                    <div class="mb-3">
+                        <label asp-for="GameTabletop.Name" class="form-label"></label>
+                        <input asp-for="GameTabletop.Name" class="form-control" placeholder="Ex: A Taverna do Javali Dourado" />
+                        <span asp-validation-for="GameTabletop.Name" class="text-danger"></span>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="GameTabletop.SystemName" class="form-label"></label>
+                                <input asp-for="GameTabletop.SystemName" class="form-control" placeholder="Ex: D&D 5e, Pathfinder, Call of Cthulhu" />
+                                <span asp-validation-for="GameTabletop.SystemName" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="GameTabletop.ScenarioName" class="form-label"></label>
+                                <input asp-for="GameTabletop.ScenarioName" class="form-control" placeholder="Ex: Forgotten Realms, Homebrew" />
+                                <span asp-validation-for="GameTabletop.ScenarioName" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="GameTabletop.Description" class="form-label"></label>
+                        <textarea asp-for="GameTabletop.Description" class="form-control" rows="4" 
+                                  placeholder="Descreva sua mesa, o tipo de aventura, tom da campanha, etc."></textarea>
+                        <span asp-validation-for="GameTabletop.Description" class="text-danger"></span>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="GameTabletop.MaxPlayers" class="form-label"></label>
+                                <input asp-for="GameTabletop.MaxPlayers" class="form-control" type="number" min="1" max="10" value="4" />
+                                <span asp-validation-for="GameTabletop.MaxPlayers" class="text-danger"></span>
+                                <div class="form-text">Número máximo de jogadores (recomendado: 3-6)</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Configurações</label>
+                                <div class="form-check">
+                                    <input asp-for="GameTabletop.IsPublic" class="form-check-input" type="checkbox" />
+                                    <label asp-for="GameTabletop.IsPublic" class="form-check-label">
+                                        Mesa pública (outros usuários podem solicitar participação)
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input asp-for="GameTabletop.AllowSpectators" class="form-check-input" type="checkbox" />
+                                    <label asp-for="GameTabletop.AllowSpectators" class="form-check-label">
+                                        Permitir espectadores
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a asp-page="./Index" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Voltar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Criar Mesa
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+}
+

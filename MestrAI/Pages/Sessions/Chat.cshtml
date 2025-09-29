@@ -1,0 +1,912 @@
+@page "/Sessions/Chat/{id:int}"
+@using Ganss.Xss
+@{
+    var sanitizer = new HtmlSanitizer();
+}
+@model RPGSessionManager.Pages.Sessions.ChatModel
+@{
+    ViewData["Title"] = $"Chat - {Model.SessionName}";
+}
+
+<div class="container-fluid">
+    <div class="row">
+        <!-- Chat Principal -->
+        <div class="col-lg-8">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-chat-dots me-2"></i>
+                        @Model.SessionName
+                    </h5>
+                    <div class="d-flex align-items-center">
+                        <div id="connection-status" class="me-3">
+                            <div class="d-flex align-items-center text-success">
+                                <i class="bi bi-circle-fill me-2" style="font-size: 0.5rem;"></i>
+                                <span>Conectado</span>
+                            </div>
+                        </div>
+                        <a href="/Sessions/Details/@Model.SessionId" class="btn btn-outline-secondary btn-sm">
+                            <i class="bi bi-arrow-left"></i> Voltar
+                        </a>
+                    </div>
+                </div>
+                
+                <div class="card-body p-0 d-flex flex-column" style="height: 70vh;">
+                    <!-- Messages Container -->
+                    <div id="chat-container" class="flex-grow-1 overflow-auto p-3" style="max-height: calc(70vh - 120px);">
+                        @foreach (var message in Model.Messages)
+                        {
+                            <div class="message-item mb-3 @GetMessageCssClass(message.Type)" data-message-id="@message.Id">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div class="message-header">
+                                        <strong class="@GetSenderCssClass(message.Type)">
+                                            @GetSenderDisplayName(message)
+                                        </strong>
+                                        @if (message.IsAiGenerated)
+                                        {
+                                            <span class="badge bg-success ms-1">IA</span>
+                                        }
+                                        @if (message.Type == RPGSessionManager.Models.MessageType.DiceRoll)
+                                        {
+                                            <span class="badge bg-warning ms-1">Dado</span>
+                                        }
+                                    </div>
+                                    <small class="text-muted">@message.CreatedAt.ToString("HH:mm")</small>
+                                </div>
+                                <div class="message-content mt-1">
+                                    @if (message.Type == RPGSessionManager.Models.MessageType.DiceRoll && !string.IsNullOrEmpty(message.Metadata))
+                                    {
+                                        @await Html.PartialAsync("_RollMessagePartial", message)
+                                    }
+                                    else
+                                    {
+                                        @Html.Raw(sanitizer.Sanitize(message.Content))
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    
+                    <!-- Message Input Form -->
+                    <div class="border-top p-3">
+                        <form id="chat-form" method="post" asp-page-handler="SendMessage" onsubmit="handleFormSubmit(event)">
+                            <input type="hidden" name="sessionId" value="@Model.SessionId" />
+                            <div class="row g-2">
+                                <div class="col-md-2">
+                                    <select name="messageType" class="form-select form-select-sm">
+                                        <option value="0">Mensagem</option>
+                                        @if (User.IsInRole("Narrator") || User.IsInRole("Admin"))
+                                        {
+                                            <option value="1">Narração</option>
+                                            <option value="3">Rolagem</option>
+                                        }
+                                        <option value="2">Ação</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-8">
+                                    <input type="text" name="content" class="form-control form-control-sm" 
+                                           placeholder="Digite sua mensagem..." required maxlength="1000" />
+                                </div>
+                                <div class="col-md-2">
+                                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                                        <i class="bi bi-send"></i> Enviar
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="row g-3">
+                <!-- Participantes Online -->
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="bi bi-people me-2"></i>
+                                Participantes Online
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div id="online-participants">
+                                <div class="text-muted">Carregando...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Personagens -->
+                @if (Model.Characters.Any())
+                {
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="bi bi-person-badge me-2"></i>
+                                    Personagens
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                @foreach (var character in Model.Characters)
+                                {
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>
+                                            <strong>@character.Name</strong>
+                                            <br>
+                                            <small class="text-muted">@character.OwnerName</small>
+                                        </div>
+                                        <div>
+                                            @if (character.AiEnabled)
+                                            {
+                                                <span class="badge bg-success">IA</span>
+                                                @if (User.IsInRole("Narrator") || User.IsInRole("Admin"))
+                                                {
+                                                    <form method="post" asp-page-handler="TriggerAiResponse" class="d-inline">
+                                                        <input type="hidden" name="sessionId" value="@Model.SessionId" />
+                                                        <input type="hidden" name="characterId" value="@character.Id" />
+                                                        <button type="submit" class="btn btn-outline-primary btn-sm">
+                                                            <i class="bi bi-robot"></i>
+                                                        </button>
+                                                    </form>
+                                                }
+                                            }
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+                
+                <!-- Painel de Memória -->
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">
+                                <i class="bi bi-brain me-2"></i>
+                                Memória da IA
+                            </h6>
+                            <div id="memory-status">
+                                <div class="d-flex align-items-center text-muted">
+                                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                    <span>Carregando...</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <!-- Estatísticas -->
+                            <div id="memory-stats" class="mb-3">
+                                <div class="text-center text-muted">
+                                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                                    <p class="mt-1 mb-0 small">Carregando estatísticas...</p>
+                                </div>
+                            </div>
+                            
+                            <!-- Busca -->
+                            <div class="mb-3">
+                                <input type="text" class="form-control form-control-sm" 
+                                       placeholder="Buscar conversas..." 
+                                       onkeyup="searchMemory(event)">
+                            </div>
+                            
+                            <!-- Conversas Relevantes -->
+                            <div id="relevant-conversations">
+                                <p class="text-muted small">Digite algo para buscar conversas relevantes...</p>
+                            </div>
+                            
+                            <!-- Ações -->
+                            @if (User.IsInRole("Narrator") || User.IsInRole("Admin"))
+                            {
+                                <div class="mt-3 pt-3 border-top">
+                                    <button class="btn btn-outline-danger btn-sm w-100" onclick="clearMemory()">
+                                        <i class="bi bi-trash"></i> Limpar Memória
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.online-participant {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.online-indicator {
+    width: 8px;
+    height: 8px;
+    background-color: #28a745;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+}
+
+.message-item {
+    border-left: 3px solid transparent;
+    padding-left: 0.75rem;
+}
+
+.narrator-message {
+    border-left-color: #6f42c1;
+    background-color: rgba(111, 66, 193, 0.05);
+}
+
+.character-action {
+    border-left-color: #fd7e14;
+    background-color: rgba(253, 126, 20, 0.05);
+}
+
+.system-message {
+    border-left-color: #6c757d;
+    background-color: rgba(108, 117, 125, 0.05);
+}
+
+.dice-roll {
+    border-left-color: #dc3545;
+    background-color: rgba(220, 53, 69, 0.05);
+}
+
+.ai-message {
+    border-left-color: #20c997;
+    background-color: rgba(32, 201, 151, 0.05);
+}
+
+.sender-narrator { color: #6f42c1; }
+.sender-character { color: #fd7e14; }
+.sender-system { color: #6c757d; }
+.sender-dice { color: #dc3545; }
+.sender-ai { color: #20c997; }
+
+#chat-container {
+    scroll-behavior: smooth;
+}
+
+.message-content {
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+</style>
+
+<script>
+// Global variables
+let connection;
+let sessionId = @Model.SessionId;
+let gameTabletopId = @(Model.SessionId); // Assuming this maps to GameTabletop
+let isAtBottom = true;
+let newMessageCount = 0;
+let memorySearchTimeout;
+
+// Draft management
+function saveDraft() {
+    const content = document.querySelector('input[name="content"]').value;
+    localStorage.setItem(`chat_draft_${sessionId}`, content);
+}
+
+function loadDraft() {
+    const draft = localStorage.getItem(`chat_draft_${sessionId}`);
+    if (draft) {
+        document.querySelector('input[name="content"]').value = draft;
+    }
+}
+
+function clearDraft() {
+    localStorage.removeItem(`chat_draft_${sessionId}`);
+}
+
+// SignalR connection
+async function initializeSignalR() {
+    connection = new signalR.HubConnectionBuilder()
+        .withUrl("/chathub")
+        .withAutomaticReconnect()
+        .build();
+
+    connection.on("ReceiveMessage", function (messageData) {
+        console.log('Received message via SignalR:', messageData);
+        addMessageToChat(messageData);
+    });
+
+    connection.on("PresenceUpdated", function (onlineUsers) {
+        console.log('Presence updated:', onlineUsers);
+        updateOnlineParticipants(onlineUsers);
+    });
+
+    connection.on("UserJoined", function (userData) {
+        console.log('User joined:', userData);
+    });
+
+    connection.on("UserLeft", function (userData) {
+        console.log('User left:', userData);
+    });
+
+    connection.onreconnecting(() => {
+        console.log('SignalR reconnecting...');
+        updateConnectionStatus('Reconectando...');
+    });
+
+    connection.onreconnected(() => {
+        console.log('SignalR reconnected');
+        updateConnectionStatus('Conectado');
+        // Rejoin session after reconnection
+        connection.invoke("JoinSession", sessionId);
+    });
+
+    connection.onclose(() => {
+        console.log('SignalR connection closed');
+        updateConnectionStatus('Desconectado');
+    });
+
+    try {
+        await connection.start();
+        console.log('SignalR connected successfully');
+        updateConnectionStatus('Conectado');
+        
+        // Join session
+        await connection.invoke("JoinSession", sessionId);
+        console.log('Joined session:', sessionId);
+    } catch (err) {
+        console.error('SignalR connection error:', err);
+        updateConnectionStatus('Erro de conexão');
+    }
+}
+
+function updateConnectionStatus(status) {
+    // You can add a status indicator if needed
+    console.log('Connection status:', status);
+}
+
+function updateOnlineParticipants(onlineUsers) {
+    const container = document.getElementById('online-participants');
+    
+    if (!onlineUsers || onlineUsers.length === 0) {
+        container.innerHTML = '<div class="text-muted">Nenhum participante online</div>';
+        return;
+    }
+
+    const html = onlineUsers.map(user => `
+        <div class="online-participant">
+            <div class="online-indicator"></div>
+            <span>${user.displayName || user.userId}</span>
+        </div>
+    `).join('');
+
+    container.innerHTML = html;
+}
+
+function addMessageToChat(messageData) {
+    const chatContainer = document.getElementById('chat-container');
+    
+    // Check for duplicates
+    const existingMessage = document.querySelector(`[data-message-id="${messageData.id || messageData.MessageId}"]`);
+    if (existingMessage) {
+        console.log(`Mensagem duplicada detectada e ignorada: ${messageData.id || messageData.MessageId}`);
+        return;
+    }
+    
+    const messageElement = createMessageElement(messageData);
+    chatContainer.appendChild(messageElement);
+    
+    console.log(`Added message ${messageData.id || messageData.MessageId} from ${messageData.authorName || messageData.SenderName}`);
+    
+    // Handle scrolling
+    if (isAtBottom) {
+        scrollToBottom();
+    } else {
+        newMessageCount++;
+        updateNewMessageButton();
+    }
+}
+
+function createMessageElement(messageData) {
+    const messageDiv = document.createElement('div');
+    const messageId = messageData.id || messageData.MessageId;
+    const messageType = messageData.type || messageData.Type || messageData.messageType || messageData.MessageType;
+    const senderName = messageData.senderName || messageData.SenderName || messageData.authorName;
+    const content = messageData.content || messageData.Content;
+    const createdAt = new Date(messageData.createdAt || messageData.CreatedAt);
+    const isAiGenerated = messageData.isAiGenerated || messageData.IsAiGenerated;
+    const metadata = messageData.metadata || messageData.Metadata;
+    
+    messageDiv.className = `message-item mb-3 ${getMessageCssClass(messageType)}`;
+    messageDiv.setAttribute('data-message-id', messageId);
+    
+    const timeString = createdAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    
+    let messageContent = content;
+    
+    // Se for uma rolagem de dados e tiver metadata, processar
+    if (messageType === 'DiceRoll' && metadata) {
+        try {
+            const rollResult = JSON.parse(metadata);
+            messageContent = createRollDisplay(rollResult);
+        } catch (e) {
+            console.error('Erro ao processar metadata da rolagem:', e);
+            messageContent = `<div class="roll-msg roll-error">
+                <div class="roll-header">
+                    <span class="roll-user">${senderName}</span>
+                    <span class="roll-verb">tentou rolar</span>
+                    <span class="roll-expr">${content}</span>
+                    <span class="roll-total">ERRO</span>
+                </div>
+                <div class="roll-details">
+                    <div class="roll-error-msg">
+                        <strong>[ERRO] PARSE_ERROR:</strong> Erro ao processar resultado da rolagem
+                    </div>
+                </div>
+            </div>`;
+        }
+    }
+    
+    messageDiv.innerHTML = `
+        <div class="d-flex justify-content-between align-items-start">
+            <div class="message-header">
+                <strong class="${getSenderCssClass(messageType)}">
+                    ${getSenderDisplayName(messageType, senderName)}
+                </strong>
+                ${isAiGenerated ? '<span class="badge bg-success ms-1">IA</span>' : ''}
+                ${messageType === 'DiceRoll' ? '<span class="badge bg-warning ms-1">Dado</span>' : ''}
+            </div>
+            <small class="text-muted">${timeString}</small>
+        </div>
+        <div class="message-content mt-1">
+            ${messageContent}
+        </div>
+    `;
+    
+    return messageDiv;
+}
+
+function getMessageCssClass(messageType) {
+    switch (messageType) {
+        case 'NarratorDescription': return 'narrator-message';
+        case 'CharacterAction': return 'character-action';
+        case 'SystemMessage': return 'system-message';
+        case 'DiceRoll': return 'dice-roll';
+        case 'AiCharacterResponse': return 'ai-message';
+        default: return '';
+    }
+}
+
+function getSenderCssClass(messageType) {
+    switch (messageType) {
+        case 'NarratorDescription': return 'sender-narrator';
+        case 'CharacterAction': return 'sender-character';
+        case 'SystemMessage': return 'sender-system';
+        case 'DiceRoll': return 'sender-dice';
+        case 'AiCharacterResponse': return 'sender-ai';
+        default: return '';
+    }
+}
+
+function getSenderDisplayName(messageType, senderName) {
+    switch (messageType) {
+        case 'NarratorDescription': return `🎭 ${senderName}`;
+        case 'CharacterAction': return `⚔️ ${senderName}`;
+        case 'SystemMessage': return '🤖 Sistema';
+        case 'DiceRoll': return `🎲 ${senderName}`;
+        case 'AiCharacterResponse': return `🤖 ${senderName}`;
+        default: return senderName;
+    }
+}
+
+// Scroll management
+function checkScrollPosition() {
+    const chatContainer = document.getElementById('chat-container');
+    const threshold = 50;
+    isAtBottom = (chatContainer.scrollTop + chatContainer.clientHeight) >= (chatContainer.scrollHeight - threshold);
+    
+    if (isAtBottom && newMessageCount > 0) {
+        newMessageCount = 0;
+        updateNewMessageButton();
+    }
+}
+
+function scrollToBottom() {
+    const chatContainer = document.getElementById('chat-container');
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+    newMessageCount = 0;
+    updateNewMessageButton();
+}
+
+function updateNewMessageButton() {
+    let button = document.getElementById('new-messages-button');
+    
+    if (newMessageCount > 0) {
+        if (!button) {
+            button = document.createElement('button');
+            button.id = 'new-messages-button';
+            button.className = 'btn btn-primary btn-sm position-fixed';
+            button.style.cssText = 'bottom: 100px; right: 20px; z-index: 1000; border-radius: 20px;';
+            button.onclick = scrollToBottom;
+            document.body.appendChild(button);
+        }
+        button.textContent = `↓ Novas mensagens (${newMessageCount})`;
+        button.style.display = 'block';
+    } else if (button) {
+        button.style.display = 'none';
+    }
+}
+
+// Form submission - REMOVIDA A LÓGICA DE EXIBIÇÃO LOCAL
+async function handleFormSubmit(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const formData = new FormData(form);
+    const contentInput = form.querySelector('input[name="content"]');
+    const submitButton = form.querySelector('button[type="submit"]');
+    const originalText = submitButton.innerHTML;
+    
+    // Disable form to prevent double submission
+    submitButton.disabled = true;
+    submitButton.innerHTML = '<div class="spinner-border spinner-border-sm me-1"></div>Enviando...';
+    
+    try {
+        const response = await fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value || ''
+            }
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                clearDraft();
+                contentInput.value = ''; // Clear input field immediately
+                
+                // Reset message type to default
+                const messageTypeSelect = form.querySelector('select[name="messageType"]');
+                if (messageTypeSelect) {
+                    messageTypeSelect.value = '0';
+                }
+                
+                console.log("Message sent successfully via AJAX");
+                // A mensagem será exibida via SignalR, não aqui
+            } else {
+                throw new Error('Server returned error');
+            }
+        } else {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+    } catch (error) {
+        console.error('Error sending message:', error);
+        alert('Erro ao enviar mensagem. Tente novamente.');
+    } finally {
+        // Re-enable form
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalText;
+    }
+}
+
+// Memory functions
+async function refreshMemoryStats() {
+    const statsContainer = document.getElementById('memory-stats');
+    const statusContainer = document.getElementById('memory-status');
+    
+    try {
+            const response = await fetch(`/api/AiNpc/session/${sessionId}/metrics`);
+        
+        if (response.ok) {
+            const stats = await response.json();
+            
+            statusContainer.innerHTML = `
+                <div class="d-flex align-items-center text-success">
+                    <i class="bi bi-check-circle me-2"></i>
+                    <span>Ativo</span>
+                </div>
+            `;
+            
+            statsContainer.innerHTML = `
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="h6 mb-0">${stats.totalConversations || 0}</div>
+                        <small class="text-muted">Conversas</small>
+                    </div>
+                    <div class="col-6">
+                        <div class="h6 mb-0">${stats.totalSpeakers || 0}</div>
+                        <small class="text-muted">Participantes</small>
+                    </div>
+                    <div class="col-12 mt-2">
+                        <div class="text-center">
+                            <div class="h6 mb-0">${stats.averageImportance ? stats.averageImportance.toFixed(1) : '0.0'}/10</div>
+                            <small class="text-muted">Importância Média</small>
+                        </div>
+                    </div>
+                </div>
+                ${stats.speakerTypeCounts ? `
+                    <div class="mt-2">
+                        <small class="text-muted">Por tipo:</small>
+                        ${Object.entries(stats.speakerTypeCounts).map(([type, count]) => 
+                            `<span class="badge bg-secondary me-1">${type}: ${count}</span>`
+                        ).join('')}
+                    </div>
+                ` : ''}
+            `;
+        } else {
+            statsContainer.innerHTML = `
+                <div class="text-center text-muted">
+                    <i class="bi bi-exclamation-circle"></i>
+                    <p class="mb-0">Erro ao carregar estatísticas</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Erro ao atualizar estatísticas de memória:', error);
+        statsContainer.innerHTML = `
+            <div class="text-center text-danger">
+                <i class="bi bi-x-circle"></i>
+                <p class="mb-0">Erro de conexão</p>
+            </div>
+        `;
+        statusContainer.innerHTML = `
+            <div class="d-flex align-items-center text-danger">
+                <i class="bi bi-x-circle me-2"></i>
+                <span>Erro de Conexão</span>
+            </div>
+        `;
+    }
+}
+
+async function searchMemory(event) {
+    const query = event.target.value.trim();
+    const container = document.getElementById('relevant-conversations');
+    
+    if (query.length < 3) {
+        container.innerHTML = '<p class="text-muted small">Digite pelo menos 3 caracteres para buscar...</p>';
+        return;
+    }
+    
+    // Debounce search
+    clearTimeout(memorySearchTimeout);
+    memorySearchTimeout = setTimeout(async () => {
+        container.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border spinner-border-sm" role="status"></div>
+                <p class="mt-1 mb-0 small">Buscando...</p>
+            </div>
+        `;
+        
+        try {
+            const response = await fetch('/api/memory/search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    gameTabletopId: gameTabletopId,
+                    query: query,
+                    limit: 5
+                })
+            });
+            
+            if (response.ok) {
+                const conversations = await response.json();
+                
+                if (conversations.length === 0) {
+                    container.innerHTML = '<p class="text-muted small">Nenhuma conversa relevante encontrada.</p>';
+                    return;
+                }
+                
+                container.innerHTML = conversations.map(conv => `
+                    <div class="border rounded p-2 mb-2 small">
+                        <div class="d-flex justify-content-between">
+                            <strong class="text-primary">${conv.speakerName}</strong>
+                            <small class="text-muted">${new Date(conv.createdAt).toLocaleDateString()}</small>
+                        </div>
+                        <div class="mt-1">${conv.content.substring(0, 100)}${conv.content.length > 100 ? '...' : ''}</div>
+                        <div class="mt-1">
+                            <span class="badge bg-secondary">${conv.speakerType}</span>
+                            <span class="badge bg-info">Imp: ${conv.importance}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = '<p class="text-danger small">Erro ao buscar conversas.</p>';
+            }
+        } catch (error) {
+            console.error('Erro na busca de memória:', error);
+            container.innerHTML = '<p class="text-danger small">Erro de conexão.</p>';
+        }
+    }, 500);
+}
+
+async function clearMemory() {
+    if (!confirm('Tem certeza que deseja limpar toda a memória desta Mesa? Esta ação não pode ser desfeita.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/memory/clear?gameTabletopId=${gameTabletopId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            alert('Memória limpa com sucesso!');
+            refreshMemoryStats();
+            document.getElementById('relevant-conversations').innerHTML = 
+                '<p class="text-muted small">Memória limpa. Digite algo para buscar novas conversas...</p>';
+        } else {
+            alert('Erro ao limpar memória. Tente novamente.');
+        }
+    } catch (error) {
+        console.error('Erro ao limpar memória:', error);
+        alert('Erro de conexão. Tente novamente.');
+    }
+}
+
+async function triggerAiResponse() {
+    const button = event.target;
+    const originalText = button.innerHTML;
+    
+    button.disabled = true;
+    button.innerHTML = '<div class="spinner-border spinner-border-sm me-1"></div>Processando...';
+    
+    try {
+        const response = await fetch('/api/chat/trigger-ai', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                sessionId: sessionId,
+                useContext: document.getElementById('ai-mode').value === 'contextual'
+            })
+        });
+        
+        if (response.ok) {
+            console.log('Resposta AI ativada com sucesso');
+        } else {
+            alert('Erro ao ativar resposta AI. Tente novamente.');
+        }
+    } catch (error) {
+        console.error('Erro ao ativar resposta AI:', error);
+        alert('Erro de conexão. Tente novamente.');
+    } finally {
+        button.disabled = false;
+        button.innerHTML = originalText;
+    }
+}
+
+// Função para criar o display de rolagem
+function createRollDisplay(rollResult) {
+    if (!rollResult) return '';
+    
+    const isError = rollResult.IsError || rollResult.isError;
+    const total = rollResult.Total || rollResult.total;
+    const expression = rollResult.Expression || rollResult.expression;
+    const summary = rollResult.Summary || rollResult.summary;
+    const details = rollResult.Details || rollResult.details;
+    
+    const rollClass = isError ? 'roll-msg roll-error' : 'roll-msg';
+    const totalClass = isError ? 'roll-total' : 'roll-total';
+    
+    let html = `<div class="${rollClass}">
+        <div class="roll-header">
+            <span class="roll-verb">rolou</span>
+            <span class="roll-expr">${expression}</span>
+            <span class="${totalClass}">${isError ? 'ERRO' : total}</span>
+        </div>`;
+    
+    if (summary) {
+        html += `<div class="roll-summary">${summary}</div>`;
+    }
+    
+    if (details) {
+        const detailsId = `details-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        html += `
+            <a href="#" class="roll-toggle" onclick="toggleDetails('${detailsId}'); return false;">Detalhes</a>
+            <div id="${detailsId}" class="roll-details" style="display: none;">
+                <div class="roll-line">${details}</div>
+            </div>`;
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+// Initialize everything when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    const chatContainer = document.getElementById('chat-container');
+    const contentInput = document.querySelector('input[name="content"]');
+    const messageForm = document.getElementById('chat-form');
+    
+    // Load draft
+    loadDraft();
+    
+    // Set up event listeners
+    if (contentInput) {
+        contentInput.addEventListener('input', saveDraft);
+        contentInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                messageForm.dispatchEvent(new Event('submit'));
+            }
+        });
+    }
+    
+    if (chatContainer) {
+        chatContainer.addEventListener('scroll', checkScrollPosition);
+        // Initial scroll to bottom
+        setTimeout(() => {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }, 100);
+    }
+    
+    // Initialize SignalR
+    initializeSignalR();
+    
+    // Carregar estatísticas iniciais
+    setTimeout(refreshMemoryStats, 1000);
+    
+    // Atualizar estatísticas periodicamente
+    setInterval(refreshMemoryStats, 30000); // A cada 30 segundos
+});
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (connection) {
+        connection.invoke("LeaveSession", sessionId);
+        connection.stop();
+    }
+});
+</script>
+
+<!-- CSS e JS para sistema de rolagens -->
+<link rel="stylesheet" href="~/css/roll-display.css" />
+<script src="~/js/toggle-details.js"></script>
+<script src="~/lib/microsoft-signalr/dist/browser/signalr.min.js"></script>
+@functions {
+    private string GetMessageCssClass(RPGSessionManager.Models.MessageType type)
+    {
+        return type switch
+        {
+            RPGSessionManager.Models.MessageType.NarratorDescription => "narrator-message",
+            RPGSessionManager.Models.MessageType.CharacterAction => "character-action",
+            RPGSessionManager.Models.MessageType.SystemMessage => "system-message",
+            RPGSessionManager.Models.MessageType.DiceRoll => "dice-roll",
+            RPGSessionManager.Models.MessageType.AiCharacterResponse => "ai-message",
+            _ => ""
+        };
+    }
+
+    private string GetSenderCssClass(RPGSessionManager.Models.MessageType type)
+    {
+        return type switch
+        {
+            RPGSessionManager.Models.MessageType.NarratorDescription => "sender-narrator",
+            RPGSessionManager.Models.MessageType.CharacterAction => "sender-character",
+            RPGSessionManager.Models.MessageType.SystemMessage => "sender-system",
+            RPGSessionManager.Models.MessageType.DiceRoll => "sender-dice",
+            RPGSessionManager.Models.MessageType.AiCharacterResponse => "sender-ai",
+            _ => ""
+        };
+    }
+
+    private string GetSenderDisplayName(RPGSessionManager.Pages.Sessions.ChatMessageViewModel message)
+    {
+        return message.Type switch
+        {
+            RPGSessionManager.Models.MessageType.NarratorDescription => $"🎭 {message.SenderName}",
+            RPGSessionManager.Models.MessageType.CharacterAction => $"⚔️ {message.SenderName}",
+            RPGSessionManager.Models.MessageType.SystemMessage => "🤖 Sistema",
+            RPGSessionManager.Models.MessageType.DiceRoll => $"🎲 {message.SenderName}",
+            RPGSessionManager.Models.MessageType.AiCharacterResponse => $"🤖 {message.SenderName}",
+            _ => message.SenderName
+        };
+    }
+}
+

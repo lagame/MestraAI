@@ -1,0 +1,50 @@
+@* Razor Partial: _RollMessagePartial.cshtml *@
+@model RPGSessionManager.Pages.Sessions.ChatMessageViewModel
+@using System.Text.Json
+@using RPGSessionManager.Rolling
+
+@{
+    RollResult? roll = null;
+    if (!string.IsNullOrEmpty(Model.Metadata))
+    {
+        try
+        {
+            roll = JsonSerializer.Deserialize<RollResult>(Model.Metadata);
+        }
+        catch { /* Se não conseguir desserializar, deixa nulo */ }
+    }
+}
+
+@if (roll != null)
+{
+    <div class="roll-msg @(roll.IsError ? "roll-error" : "")" data-seed="@roll.Seed">
+        <div class="roll-header">
+            <span class="roll-user">@roll.User</span>
+            <span class="roll-verb">rolou</span>
+            <span class="roll-expr">@roll.Expression</span>
+            <span class="roll-total">@roll.Total</span>
+            <a href="#" class="btn btn-outline-secondary roll-toggle" onclick="toggleRollDetails(this)">
+                Detalhes
+            </a>
+        </div>
+
+        @if (roll.IsError)
+        {
+            <div class="roll-details">
+                <div class="roll-error-msg">
+                    <strong>[ERRO] @roll.ErrorCode:</strong> @roll.ErrorMessage
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="roll-summary">@RollFormatter.FormatSummaryPtBr(roll)</div>
+            <div class="roll-details" hidden>
+                @foreach (var line in RollFormatter.FormatDetailsPtBr(roll))
+                {
+                    <div class="roll-line">@line</div>
+                }
+            </div>
+        }
+    </div>
+}

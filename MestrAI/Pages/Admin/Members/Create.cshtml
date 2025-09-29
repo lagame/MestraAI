@@ -1,0 +1,45 @@
+@page "{id:int?}"
+@using RPGSessionManager.Models
+@using Microsoft.AspNetCore.Mvc.Rendering
+@model RPGSessionManager.Pages.Admin.Members.CreateModel
+@{
+    ViewData["Title"] = "Adicionar Membro";
+}
+
+<h2 class="mb-3">Adicionar Membro</h2>
+
+<form method="post" class="row g-3">
+    <div class="col-md-6">
+        <label asp-for="GameTabletopId" class="form-label">Mesa</label>
+        <select asp-for="GameTabletopId" asp-items="Model.TabletopList" class="form-select">
+            <option value="">-- selecione uma mesa --</option>
+        </select>
+        <span asp-validation-for="GameTabletopId" class="text-danger"></span>
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="Role" class="form-label">Papel na Mesa</label>
+        <select asp-for="Role" class="form-select" asp-items="Model.RoleOptions"></select>
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="DisplayName" class="form-label">Nome de exibição (DisplayName)</label>
+        <input asp-for="DisplayName" class="form-control" />
+        <span asp-validation-for="DisplayName" class="text-danger"></span>
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="Email" class="form-label">Email do usuário</label>
+        <input asp-for="Email" class="form-control" />
+        <span asp-validation-for="Email" class="text-danger"></span>
+    </div>
+
+    <div class="col-12">
+        <button type="submit" class="btn btn-primary">Adicionar</button>
+        <a asp-page="./Index" class="btn btn-secondary ms-2">Cancelar</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
